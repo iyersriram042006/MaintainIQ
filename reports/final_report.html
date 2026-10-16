@@ -496,11 +496,11 @@
 
 <p class="body-para">Unplanned machinery downtime represents one of the largest drivers of unrecoverable operational expenditures and safety hazards across modern manufacturing facilities. Traditional maintenance paradigms—reactive (run-to-failure) and preventive (calendar-based)—consistently fail to balance maintenance overhead against catastrophic equipment destruction. This project presents <strong>MaintainIQ</strong>, a modular, leakage-safe machine learning system designed to monitor continuous sensor telemetry from industrial milling operations and assess equipment failure risk prior to catastrophic failure.</p>
 
-<p class="body-para">Using the <strong>UCI AI4I 2020 Predictive Maintenance Dataset</strong> (10,000 records, 14 attributes), MaintainIQ benchmarks four distinct supervised classification algorithms: <strong>Logistic Regression</strong> (linear baseline), <strong>Random Forest</strong> (bagging ensemble), <strong>XGBoost</strong> (extreme gradient boosting), and <strong>CatBoost</strong> (categorical gradient boosting). The dataset exhibits severe class imbalance, with positive failure events occurring in only <strong>3.39%</strong> of observations. Addressing this challenge, all data preprocessing and categorical encoding transformations were embedded in a strict scikit-learn pipeline fit exclusively on training data following a reproducible 80/20 stratified train/test split (<code class="inline-code">random_state=42</code>), eliminating all forms of data leakage.</p>
+<p class="body-para">Using the <strong>UCI AI4I 2020 Predictive Maintenance Dataset</strong> (10,000 records, 14 attributes), MaintainIQ benchmarks four distinct supervised classification algorithms permitted by the academic syllabus: <strong>Logistic Regression</strong> (linear baseline), <strong>Decision Tree Classifier</strong> (cost-sensitive classification tree), <strong>K-Nearest Neighbors (KNN)</strong> (distance-weighted neighbor voting), and <strong>Support Vector Machine (SVM)</strong> (margin-weighted support vector classification with probability calibration). The dataset exhibits severe class imbalance, with positive failure events occurring in only <strong>3.39%</strong> of observations. Addressing this challenge, all data preprocessing and categorical encoding transformations were embedded in a strict scikit-learn pipeline fit exclusively on training data following a reproducible 80/20 stratified train/test split (<code class="inline-code">random_state=42</code>), eliminating all forms of data leakage.</p>
 
-<p class="body-para">Given the acute positive-class rarity, models were evaluated and selected using <strong>Precision-Recall Area Under the Curve (PR-AUC / Average Precision)</strong> alongside Recall, Precision, and F1-score, rather than deceptive scalar accuracy or unweighted ROC-AUC. Empirical evaluation on the held-out test split (2,000 samples, 68 failures) demonstrated that <strong>XGBoost</strong> configured with training-derived scale-positive weighting achieved superior operational performance: <strong>PR-AUC of 0.8283</strong>, <strong>F1-score of 0.7376</strong>, <strong>Recall of 76.47%</strong> (catching 52 of 68 test failures), <strong>Precision of 71.23%</strong>, and an inference latency of <strong>1.38 µs per sample</strong>. Random Forest achieved the highest precision (75.41%, 15 false alarms), while CatBoost attained the highest raw recall (85.29%, 58 of 68 failures detected).</p>
+<p class="body-para">Given the acute positive-class rarity, models were evaluated and selected using <strong>Precision-Recall Area Under the Curve (PR-AUC / Average Precision)</strong> alongside Recall, Precision, Accuracy, and F1-score, rather than deceptive scalar accuracy alone. Empirical evaluation on the held-out test split (2,000 samples, 68 failures) demonstrated that the <strong>Decision Tree Classifier</strong> configured with cost-sensitive class balancing achieved superior operational performance: <strong>PR-AUC of 0.7291</strong>, <strong>F1-score of 0.5644</strong>, <strong>Recall of 83.82%</strong> (catching 57 of 68 test failures), <strong>Precision of 42.54%</strong>, <strong>Accuracy of 95.60%</strong>, and an inference latency of <strong>0.94 µs per sample</strong>. Support Vector Machine achieved the highest ROC-AUC (<strong>0.9655</strong>) and highest raw failure recall (<strong>89.71%</strong>, 61 of 68 failures detected), while K-Nearest Neighbors attained the highest precision (<strong>83.33%</strong>, only 4 false alarms).</p>
 
-<p class="body-para">To resolve the industrial black-box barrier, MaintainIQ integrates dual-level Explainable AI (XAI): global permutation feature importance (measuring true degradation in PR-AUC across 10 repeats) and local instance feature attributions via TreeSHAP (<code class="inline-code">TreeExplainer</code>). Global evaluation established that cutting torque (mean PR-AUC drop: 0.5985), ambient air temperature (drop: 0.5062), and spindle rotational speed (drop: 0.4183) govern model predictions, aligning with the physical laws of power overload, heat dissipation breakdown, and mechanical overstrain. The complete pipeline is operationalized through an interactive, multi-tab Streamlit dashboard supporting single-machine telemetry risk scoring, batch CSV evaluation with automatic leakage exclusion, benchmark visualization, and explainability inspection. Finally, we explicitly emphasize that the AI4I 2020 dataset is derived from a phenomenological physical simulator; consequently, while our results validate pipeline safety and algorithmic capability, they do not establish uncalibrated real-world industrial reliability guarantees.</p>
+<p class="body-para">To resolve the industrial black-box barrier, MaintainIQ integrates dual-level Explainable AI (XAI): global permutation feature importance (measuring true degradation in PR-AUC across 10 repeats) and local instance feature attributions via TreeSHAP (<code class="inline-code">TreeExplainer</code>). Global evaluation established that cutting torque (mean PR-AUC drop: 0.5354), ambient air temperature (drop: 0.5005), and spindle rotational speed (drop: 0.4877) govern model predictions, aligning with the physical laws of power overload, heat dissipation breakdown, and mechanical overstrain. The complete pipeline is operationalized through an interactive, multi-tab Streamlit dashboard supporting single-machine telemetry risk scoring, batch CSV evaluation with automatic leakage exclusion, benchmark visualization, explainability inspection, and syllabus-permitted experimental extensions (K-Means clustering and Linear Regression parameter estimation). Finally, we explicitly emphasize that the AI4I 2020 dataset is derived from a phenomenological physical simulator; consequently, while our results validate pipeline safety and algorithmic capability, they do not establish uncalibrated real-world industrial reliability guarantees.</p>
 
 <hr class="section-divider" />
 
@@ -529,7 +529,7 @@
 </li><li>
 <strong>Data Leakage in Feature Pipelines</strong>: Industrial telemetry preprocessing frequently suffers from methodological leakage: fitting scalers or imputers across entire datasets prior to splitting, or applying synthetic oversampling techniques (such as SMOTE) across evaluation sets. When evaluated under strict production conditions, these leaky pipelines collapse [4].
 </li><li>
-<strong>The "Black-Box" Usability Chasm</strong>: Modern high-performing non-linear estimators (e.g., gradient boosted decision trees) produce complex decision surfaces. Shop-floor maintenance technicians and reliability engineers routinely reject automated alert systems when the algorithm cannot provide clear, physically verifiable reasoning for an alert [1], [4].
+<strong>The "Black-Box" Usability Chasm</strong>: Modern high-performing non-linear estimators produce complex decision surfaces. Shop-floor maintenance technicians and reliability engineers routinely reject automated alert systems when the algorithm cannot provide clear, physically verifiable reasoning for an alert [1], [4].
 </li><li>
 <strong>Real-Time Operational Latency</strong>: Predictive systems deployed in industrial IoT (IIoT) edge environments or plant-wide supervisory control and data acquisition (SCADA) systems require microsecond-level inference latency to score telemetry batches continuously without creating processing bottlenecks.
 </li></ul>
@@ -544,13 +544,13 @@ Ingests industrial milling machine telemetry from the UCI AI4I 2020 dataset and 
 </li><li>
 Separates the six approved sensor feature variables from target labels and ground-truth failure mode breakdown indicators to prevent target leakage.
 </li><li>
-Benchmarks four diverse classification algorithms (Logistic Regression, Random Forest, XGBoost, CatBoost) under cost-sensitive class reweighting on an 80/20 stratified split (<code class="inline-code">random_state=42</code>).
+Benchmarks four approved classification algorithms (Logistic Regression, Decision Tree, KNN, SVM) under cost-sensitive class reweighting on an 80/20 stratified split (<code class="inline-code">random_state=42</code>), plus optional syllabus experimental extensions (K-Means Clustering and Linear Regression).
 </li><li>
-Evaluates performance using threshold-independent <strong>PR-AUC</strong>, Precision, Recall, and F1-score rather than misleading overall accuracy.
+Evaluates performance using threshold-independent <strong>PR-AUC</strong>, Precision, Recall, Accuracy, and F1-score rather than misleading overall accuracy alone.
 </li><li>
 Implements model-agnostic permutation feature importance and local game-theoretic TreeSHAP feature attributions.
 </li><li>
-Deploys the best-performing pipeline through an interactive Streamlit web dashboard supporting single-record inference, batch CSV upload scoring, model metric inspection, and explainability visualization.
+Deploys the champion pipeline through an interactive Streamlit web dashboard supporting single-record inference, batch CSV upload scoring, model metric inspection, explainability visualization, and experimental regime clustering.
 </li></ol>
 
 <hr class="section-divider" />
@@ -752,9 +752,8 @@ Test Set: 1,932 normal operations, 68 machine failures (3.400% failure rate).
 +------------------------------------------------+------------------------------------------------+
                                                  |
                                                  v
-+------------------------------------------------+------------------------------------------------+
-|  Classifier Estimator (Fitted on Weighted Training Split):                                     |
-|  Logistic Regression / Random Forest / XGBoost / CatBoost                                      |
++------------------------------------------------+-----------------------------------------|  Classifier Estimator (Fitted on Weighted Training Split):                                     |
+|  Decision Tree / Support Vector Machine / K-Nearest Neighbors / Logistic Regression            |
 +-------------------------------------------------------------------------------------------------+</code></pre></div>
 
 <ul class="report-list">
@@ -770,20 +769,18 @@ Test Set: 1,932 normal operations, 68 machine failures (3.400% failure rate).
 
 <h3 id="61-class-imbalance-mitigation-strategy" class="academic-h3">6.1 Class Imbalance Mitigation Strategy</h3>
 
-<p class="body-para">Because class imbalance is acute (28.5:1), standard maximum-likelihood optimization is overwhelmed by the negative class. MaintainIQ implements cost-sensitive loss weighting across all four models:</p>
+<p class="body-para">Because class imbalance is acute (~28.5:1), standard maximum-likelihood optimization is overwhelmed by the negative class. MaintainIQ implements principled, syllabus-permitted imbalance mitigation across all four classifiers:</p>
 
 <ol class="report-list">
 <li>
-<strong>Logistic Regression</strong>: Configured with <code class="inline-code">class_weight=&#x27;balanced&#x27;</code>, which inversely weights samples by class frequency:
+<strong>Decision Tree Classifier</strong>: Configured with <code class="inline-code">class_weight=&#x27;balanced&#x27;</code>, which scales impurity split criteria inversely proportional to training class frequencies:
 <div class="math-display">$$w_c = \frac{N}{2 \cdot N_c}$$</div>
 </li><li>
-<strong>Random Forest</strong>: Configured with <code class="inline-code">class_weight=&#x27;balanced&#x27;</code>, applying balanced bootstrap sampling per tree so each sub-tree is fit on a balanced slice of the training observations.
+<strong>Support Vector Machine (SVM)</strong>: Configured with <code class="inline-code">class_weight=&#x27;balanced&#x27;</code>, <code class="inline-code">probability=True</code>, and an RBF kernel. Margin-slack penalties (<span class="math-inline">$C$</span>) for misclassified rare failure samples are scaled up by <span class="math-inline">$w_1 \approx 14.76$</span>, with Platt scaling applied for probabilistic risk calibration.
 </li><li>
-<strong>XGBoost</strong>: Configured with <code class="inline-code">scale_pos_weight = n_neg / n_pos</code>, computed strictly on the training partition:
-<div class="math-display">$$\text{scale\_pos\_weight} = \frac{7729}{271} \approx 28.5203$$</div>
-<p class="list-continuation">This scales the gradient of the loss function for positive failure instances by 28.52×, penalizing false negatives proportionately to the class imbalance ratio.</p>
+<strong>K-Nearest Neighbors (KNN)</strong>: Configured with <code class="inline-code">weights=&#x27;distance&#x27;</code> and <span class="math-inline">$k=7$</span> neighbors. Rather than unweighted majority voting (which is dominated by healthy records), neighbors are weighted by the reciprocal of Euclidean distance (<span class="math-inline">$w_i = 1/d(x, x_i)$</span>), magnifying the influence of nearby failure points.
 </li><li>
-<strong>CatBoost</strong>: Configured with <code class="inline-code">auto_class_weights=&#x27;Balanced&#x27;</code>, internally adjusting negative and positive weights inversely to class frequencies.
+<strong>Logistic Regression</strong>: Configured with <code class="inline-code">class_weight=&#x27;balanced&#x27;</code>, applying inverse class frequency reweighting to log-loss log-odds calculations.
 </li></ol>
 
 <h3 id="62-model-architectures-hyperparameters" class="academic-h3">6.2 Model Architectures & Hyperparameters</h3>
@@ -792,18 +789,18 @@ Test Set: 1,932 normal operations, 68 machine failures (3.400% failure rate).
 
 <ul class="report-list">
 <li>
-<strong>Logistic Regression</strong>: <code class="inline-code">solver=&#x27;lbfgs&#x27;</code>, <code class="inline-code">C=1.0</code>, <code class="inline-code">max_iter=1000</code>.
+<strong>Decision Tree</strong>: <code class="inline-code">criterion=&#x27;gini&#x27;</code>, <code class="inline-code">class_weight=&#x27;balanced&#x27;</code>, <code class="inline-code">max_depth=8</code>, <code class="inline-code">min_samples_leaf=4</code>, <code class="inline-code">random_state=42</code>.
 </li><li>
-<strong>Random Forest</strong>: <code class="inline-code">n_estimators=100</code>, <code class="inline-code">max_depth=12</code>, <code class="inline-code">min_samples_split=5</code>, <code class="inline-code">n_jobs=-1</code>.
+<strong>Support Vector Machine (SVM)</strong>: <code class="inline-code">kernel=&#x27;rbf&#x27;</code>, <code class="inline-code">class_weight=&#x27;balanced&#x27;</code>, <code class="inline-code">probability=True</code>, <code class="inline-code">C=1.0</code>, <code class="inline-code">random_state=42</code>.
 </li><li>
-<strong>XGBoost</strong>: <code class="inline-code">n_estimators=100</code>, <code class="inline-code">max_depth=5</code>, <code class="inline-code">learning_rate=0.1</code>, <code class="inline-code">subsample=0.8</code>, <code class="inline-code">colsample_bytree=0.8</code>, <code class="inline-code">eval_metric=&#x27;logloss&#x27;</code>.
+<strong>K-Nearest Neighbors (KNN)</strong>: <code class="inline-code">n_neighbors=7</code>, <code class="inline-code">weights=&#x27;distance&#x27;</code>, <code class="inline-code">metric=&#x27;minkowski&#x27;</code>, <code class="inline-code">p=2</code>.
 </li><li>
-<strong>CatBoost</strong>: <code class="inline-code">iterations=150</code>, <code class="inline-code">depth=6</code>, <code class="inline-code">learning_rate=0.1</code>, <code class="inline-code">verbose=False</code>.
+<strong>Logistic Regression</strong>: <code class="inline-code">solver=&#x27;lbfgs&#x27;</code>, <code class="inline-code">class_weight=&#x27;balanced&#x27;</code>, <code class="inline-code">C=1.0</code>, <code class="inline-code">max_iter=1000</code>, <code class="inline-code">random_state=42</code>.
 </li></ul>
 
 <h3 id="63-evaluation-metrics-formulation" class="academic-h3">6.3 Evaluation Metrics Formulation</h3>
 
-<p class="body-para">Given severe class imbalance, accuracy is discarded. Models are evaluated across five critical metrics:</p>
+<p class="body-para">Given severe class imbalance, accuracy is supplemented by threshold-independent and positive-class-focused metrics:</p>
 
 <ul class="report-list">
 <li>
@@ -814,6 +811,10 @@ Test Set: 1,932 normal operations, 68 machine failures (3.400% failure rate).
 <strong>Recall (<span class="math-inline">$R$</span>) / Sensitivity</strong>:
 <div class="math-display">$$R = \frac{\text{TP}}{\text{TP} + \text{FN}}$$</div>
 <p class="list-continuation">Measures the percentage of actual physical failures caught. Low recall causes catastrophic unmitigated machinery destruction.</p>
+</li><li>
+<strong>Accuracy</strong>:
+<div class="math-display">$$\text{Accuracy} = \frac{\text{TP} + \text{TN}}{\text{TP} + \text{TN} + \text{FP} + \text{FN}}$$</div>
+<p class="list-continuation">Overall fraction of correct classifications across all operational cycles.</p>
 </li><li>
 <strong>F1-Score</strong>:
 <div class="math-display">$$F_1 = 2 \cdot \frac{P \cdot R}{P + R}$$</div>
@@ -838,63 +839,61 @@ Test Set: 1,932 normal operations, 68 machine failures (3.400% failure rate).
 
 <p class="table-caption"><strong>Table 1: Comprehensive Model Comparison Benchmark on Held-Out Test Split (2,000 Samples, 68 Failures)</strong></p>
 
-<div class="table-wrapper"><table class="academic-table table-wide"><thead><tr><th style="text-align: left;">Model</th><th style="text-align: center;">PR-AUC</th><th style="text-align: center;">F1-Score</th><th style="text-align: center;">Precision</th><th style="text-align: center;">Recall</th><th style="text-align: center;">ROC-AUC</th><th style="text-align: center;">TP</th><th style="text-align: center;">FP</th><th style="text-align: center;">FN</th><th style="text-align: center;">TN</th><th style="text-align: center;">Latency (µs/sample)</th><th style="text-align: left;">Imbalance Strategy</th></tr></thead><tbody><tr><td style="text-align: left;"><strong>XGBoost</strong> (Selected)</td><td style="text-align: center;"><strong>0.8283</strong></td><td style="text-align: center;"><strong>0.7376</strong></td><td style="text-align: center;">0.7123</td><td style="text-align: center;">0.7647</td><td style="text-align: center;">0.9651</td><td style="text-align: center;">52</td><td style="text-align: center;">21</td><td style="text-align: center;">16</td><td style="text-align: center;">1911</td><td style="text-align: center;">1.38 µs</td><td style="text-align: left;"><code class="inline-code">scale_pos_weight = 28.52</code></td></tr><tr><td style="text-align: left;"><strong>Random Forest</strong></td><td style="text-align: center;">0.7368</td><td style="text-align: center;">0.7132</td><td style="text-align: center;"><strong>0.7541</strong></td><td style="text-align: center;">0.6765</td><td style="text-align: center;">0.9574</td><td style="text-align: center;">46</td><td style="text-align: center;">15</td><td style="text-align: center;">22</td><td style="text-align: center;">1917</td><td style="text-align: center;">7.83 µs</td><td style="text-align: left;"><code class="inline-code">class_weight=&#x27;balanced&#x27;</code></td></tr><tr><td style="text-align: left;"><strong>CatBoost</strong></td><td style="text-align: center;">0.7068</td><td style="text-align: center;">0.5133</td><td style="text-align: center;">0.3671</td><td style="text-align: center;"><strong>0.8529</strong></td><td style="text-align: center;"><strong>0.9702</strong></td><td style="text-align: center;">58</td><td style="text-align: center;">100</td><td style="text-align: center;">10</td><td style="text-align: center;">1832</td><td style="text-align: center;">1.38 µs</td><td style="text-align: left;"><code class="inline-code">auto_class_weights=&#x27;Balanced&#x27;</code></td></tr><tr><td style="text-align: left;"><strong>Logistic Regression</strong></td><td style="text-align: center;">0.3818</td><td style="text-align: center;">0.2419</td><td style="text-align: center;">0.1418</td><td style="text-align: center;">0.8235</td><td style="text-align: center;">0.9070</td><td style="text-align: center;">56</td><td style="text-align: center;">339</td><td style="text-align: center;">12</td><td style="text-align: center;">1593</td><td style="text-align: center;">1.07 µs</td><td style="text-align: left;"><code class="inline-code">class_weight=&#x27;balanced&#x27;</code></td></tr></tbody></table></div>
+<div class="table-wrapper"><table class="academic-table table-wide"><thead><tr><th style="text-align: left;">Model</th><th style="text-align: center;">PR-AUC</th><th style="text-align: center;">F1-Score</th><th style="text-align: center;">Precision</th><th style="text-align: center;">Recall</th><th style="text-align: center;">Accuracy</th><th style="text-align: center;">ROC-AUC</th><th style="text-align: center;">TP</th><th style="text-align: center;">FP</th><th style="text-align: center;">FN</th><th style="text-align: center;">TN</th><th style="text-align: center;">Latency (µs/sample)</th><th style="text-align: center;">Training Time (s)</th><th style="text-align: left;">Imbalance Strategy</th></tr></thead><tbody><tr><td style="text-align: left;"><strong>Decision Tree</strong> (Selected Champion)</td><td style="text-align: center;"><strong>0.7291</strong></td><td style="text-align: center;"><strong>0.5644</strong></td><td style="text-align: center;">0.4254</td><td style="text-align: center;">0.8382</td><td style="text-align: center;">0.9560</td><td style="text-align: center;">0.9097</td><td style="text-align: center;">57</td><td style="text-align: center;">77</td><td style="text-align: center;">11</td><td style="text-align: center;">1855</td><td style="text-align: center;">0.94 µs</td><td style="text-align: center;">0.018 s</td><td style="text-align: left;"><code class="inline-code">class_weight=&#x27;balanced&#x27;</code></td></tr><tr><td style="text-align: left;"><strong>Support Vector Machine (SVM)</strong></td><td style="text-align: center;">0.6119</td><td style="text-align: center;">0.4251</td><td style="text-align: center;">0.2785</td><td style="text-align: center;"><strong>0.8971</strong></td><td style="text-align: center;">0.9175</td><td style="text-align: center;"><strong>0.9655</strong></td><td style="text-align: center;">61</td><td style="text-align: center;">158</td><td style="text-align: center;">7</td><td style="text-align: center;">1774</td><td style="text-align: center;">39.87 µs</td><td style="text-align: center;">1.100 s</td><td style="text-align: left;"><code class="inline-code">class_weight=&#x27;balanced&#x27;, probability=True</code></td></tr><tr><td style="text-align: left;"><strong>K-Nearest Neighbors (KNN)</strong></td><td style="text-align: center;">0.5516</td><td style="text-align: center;">0.4348</td><td style="text-align: center;"><strong>0.8333</strong></td><td style="text-align: center;">0.2941</td><td style="text-align: center;"><strong>0.9740</strong></td><td style="text-align: center;">0.8566</td><td style="text-align: center;">20</td><td style="text-align: center;">4</td><td style="text-align: center;">48</td><td style="text-align: center;">1928</td><td style="text-align: center;">6.46 µs</td><td style="text-align: center;">0.008 s</td><td style="text-align: left;"><code class="inline-code">distance-weighted neighbors (k=7)</code></td></tr><tr><td style="text-align: left;"><strong>Logistic Regression</strong></td><td style="text-align: center;">0.3818</td><td style="text-align: center;">0.2419</td><td style="text-align: center;">0.1418</td><td style="text-align: center;">0.8235</td><td style="text-align: center;">0.8245</td><td style="text-align: center;">0.9070</td><td style="text-align: center;">56</td><td style="text-align: center;">339</td><td style="text-align: center;">12</td><td style="text-align: center;">1593</td><td style="text-align: center;">1.09 µs</td><td style="text-align: center;">0.036 s</td><td style="text-align: left;"><code class="inline-code">class_weight=&#x27;balanced&#x27;</code></td></tr></tbody></table></div>
 
 <p class="table-note"><em>(Note: Existing generated table artifact is saved at <code class="inline-code">reports/tables/model_comparison.csv</code> and detailed metrics at <code class="inline-code">reports/tables/model_metrics.json</code>)</em>.</p>
 
 <div class="code-block-container ascii-container"><pre><code class="ascii-art">+-------------------------------------------------------------------------------------------------+
 |                               MODEL PERFORMANCE COMPARISON (PR-AUC)                             |
 +-------------------------------------------------------------------------------------------------+
-| XGBoost             [##################################################] 0.8283 (Best Overall) |
-| Random Forest       [##########################################        ] 0.7368 (Best Precision)|
-| CatBoost            [########################################          ] 0.7068 (Best Recall)   |
-| Logistic Regression [######################                            ] 0.3818 (Linear Baseline)|
+| Decision Tree       [##################################################] 0.7291 (Best Overall) |
+| SVM                 [##########################################        ] 0.6119 (Best Recall/ROC)|
+| KNN                 [#####################################             ] 0.5516 (Best Precision)|
+| Logistic Regression [##########################                        ] 0.3818 (Linear Baseline)|
 +-------------------------------------------------------------------------------------------------+</code></pre></div>
 
 <h3 id="72-analysis-of-model-behaviors-trade-offs" class="academic-h3">7.2 Analysis of Model Behaviors & Trade-offs</h3>
 
 <ol class="report-list">
 <li>
-<strong>XGBoost (Selected Champion)</strong>:
+<strong>Decision Tree Classifier (Selected Champion)</strong>:
 <ul class="report-list">
 <li>
-Achieved the highest <strong>PR-AUC (0.8283)</strong> and <strong>F1-score (0.7376)</strong>.
+Achieved the highest <strong>PR-AUC (0.7291)</strong> and highest <strong>F1-score (0.5644)</strong> among all approved syllabus models.
 </li><li>
-Successfully identified <strong>52 of 68 machine failures</strong> (Recall = 76.47%) while generating only <strong>21 false positives</strong> across 1,932 healthy cycles (Precision = 71.23%).
+Successfully identified <strong>57 of 68 machine failures</strong> (Recall = 83.82%) while keeping false positives to 77 across 1,932 healthy cycles (Accuracy = 95.60%).
 </li><li>
-Demonstrated exceptional computational efficiency: <strong>1.38 µs per sample</strong> (2.76 ms for all 2,000 records), making it ideal for edge deployment.
+Demonstrated microsecond computational speed: <strong>0.94 µs per sample</strong> (1.89 ms total for 2,000 records) and near-instant training time (<strong>0.018 s</strong>).
 </li></ul>
 </li><li>
-<strong>Random Forest (High-Precision Profile)</strong>:
+<strong>Support Vector Machine (Maximum Recall & ROC-AUC Profile)</strong>:
 <ul class="report-list">
 <li>
-Attained the highest <strong>Precision (75.41%)</strong> and lowest false-alarm count (<strong>15 false positives</strong>).
+Attained the highest <strong>ROC-AUC (0.9655)</strong> and highest raw failure detection rate (<strong>Recall = 89.71%</strong>, catching 61 of 68 test failures, with only 7 escaping).
 </li><li>
-Caught <strong>46 of 68 failures</strong> (Recall = 67.65%), missing 22 failures.
-</li><li>
-Higher computational latency (<strong>7.83 µs/sample</strong>, ~5.7× slower than XGBoost) due to evaluating 100 deep, unpruned bagging trees.
+Suffered from higher false positives (<strong>158 FP</strong>, Precision = 27.85%) and higher evaluation latency (<strong>39.87 µs/sample</strong>), characteristic of evaluating hundreds of non-linear RBF support vectors with Platt probability scaling.
 </li></ul>
 </li><li>
-<strong>CatBoost (Maximum Recall Profile)</strong>:
+<strong>K-Nearest Neighbors (High-Precision Profile)</strong>:
 <ul class="report-list">
 <li>
-Maximized <strong>Recall (85.29%)</strong>, detecting <strong>58 of 68 failures</strong> and allowing only 10 failures to escape undetected.
+Maximized <strong>Precision (83.33%)</strong> and lowest false-alarm count (<strong>only 4 false positives</strong>), leading to the highest overall accuracy (<strong>97.40%</strong>).
 </li><li>
-Suffered from lower <strong>Precision (36.71%)</strong>, generating <strong>100 false positives</strong> (nearly 5× more than XGBoost). In operational settings, this would trigger 100 unnecessary equipment inspections.
+However, missed 48 of 68 failures (<strong>Recall = 29.41%</strong>), making it ill-suited as a standalone fail-safe alarm system without threshold adjustment.
 </li></ul>
 </li><li>
 <strong>Logistic Regression (Linear Baseline Inadequacy)</strong>:
 <ul class="report-list">
 <li>
-High Recall (82.35%, 56 failures detected), but disastrous <strong>Precision (14.18%)</strong> and <strong>339 false alarms</strong> (over 17% of all healthy runs misclassified).
+High Recall (82.35%, 56 failures detected), but disastrous <strong>Precision (14.18%)</strong> and <strong>339 false alarms</strong> (over 17% of healthy cycles flagged incorrectly).
 </li><li>
-Demonstrates that linear decision boundaries cannot capture multiplicative degradation thresholds (e.g., Torque × Rotational Speed or Torque × Tool Wear). Non-linear tree ensembles are mathematically required for physical telemetry modeling.
+Demonstrates that linear decision surfaces cannot model physical boundary crossings (e.g., Torque <span class="math-inline">$\times$</span> Rotational Speed power envelope). Non-linear models are fundamentally required.
 </li></ul>
 </li></ol>
 
 <h3 id="73-model-selection-decision" class="academic-h3">7.3 Model Selection Decision</h3>
 
-<p class="body-para">MaintainIQ selects <strong>XGBoost</strong> as its champion prototype model (<code class="inline-code">models/model.joblib</code>) for dashboard deployment. By maximizing PR-AUC (0.8283) and F1-score (0.7376), XGBoost strikes the optimal industrial compromise: detecting over three-quarters of all machine failures while keeping false alarms to a manageable ~1% false positive rate across normal operational runs.</p>
+<p class="body-para">MaintainIQ selects the <strong>Decision Tree Classifier</strong> as its champion prototype model (<code class="inline-code">models/model.joblib</code>) for dashboard deployment. By maximizing PR-AUC (0.7291) and F1-score (0.5644), Decision Tree achieves the optimal engineering compromise: detecting nearly 84% of all machine failures while sustaining sub-microsecond latency (0.94 µs/sample) and providing native tree explainability.</p>
 
 <hr class="section-divider" />
 
@@ -917,260 +916,190 @@ Demonstrates that linear decision boundaries cannot capture multiplicative degra
 
 <p class="table-caption"><strong>Table 2: Ranked Permutation Feature Importance on Held-Out Test Set (10 Repeats, PR-AUC Drop)</strong></p>
 
-<div class="table-wrapper"><table class="academic-table"><thead><tr><th style="text-align: center;">Rank</th><th style="text-align: left;">Transformed Feature</th><th style="text-align: center;">Importance (PR-AUC Drop)</th><th style="text-align: center;">Std Dev (±)</th><th style="text-align: left;">Physical Interpretation</th></tr></thead><tbody><tr><td style="text-align: center;"><strong>1</strong></td><td style="text-align: left;"><code class="inline-code">Torque [Nm]</code></td><td style="text-align: center;"><strong>0.5985</strong></td><td style="text-align: center;">±0.0180</td><td style="text-align: left;">Mechanical resistance torque; dominant driver of overstrain and motor power failure</td></tr><tr><td style="text-align: center;"><strong>2</strong></td><td style="text-align: left;"><code class="inline-code">Air temperature [K]</code></td><td style="text-align: center;"><strong>0.5062</strong></td><td style="text-align: center;">±0.0536</td><td style="text-align: left;">Ambient environmental heat; dictates heat dissipation gradient <span class="math-inline">$\Delta T$</span></td></tr><tr><td style="text-align: center;"><strong>3</strong></td><td style="text-align: left;"><code class="inline-code">Rotational speed [rpm]</code></td><td style="text-align: center;"><strong>0.4183</strong></td><td style="text-align: center;">±0.0281</td><td style="text-align: left;">Spindle velocity; governs cutting speed and motor power (<span class="math-inline">$P = \tau \cdot \omega$</span>)</td></tr><tr><td style="text-align: center;"><strong>4</strong></td><td style="text-align: left;"><code class="inline-code">Tool wear [min]</code></td><td style="text-align: center;"><strong>0.3242</strong></td><td style="text-align: center;">±0.0397</td><td style="text-align: left;">Cumulative cutter contact duration; triggers tool wear failure and accelerates strain</td></tr><tr><td style="text-align: center;"><strong>5</strong></td><td style="text-align: left;"><code class="inline-code">Process temperature [K]</code></td><td style="text-align: center;"><strong>0.2660</strong></td><td style="text-align: center;">±0.0331</td><td style="text-align: left;">Cutting friction temperature; determines thermal dissipation failure threshold</td></tr><tr><td style="text-align: center;"><strong>6</strong></td><td style="text-align: left;"><code class="inline-code">Type_L</code></td><td style="text-align: center;"><strong>0.0273</strong></td><td style="text-align: center;">±0.0102</td><td style="text-align: left;">Low-quality product variant indicator (mass production tolerance)</td></tr><tr><td style="text-align: center;"><strong>7</strong></td><td style="text-align: left;"><code class="inline-code">Type_M</code></td><td style="text-align: center;"><strong>0.0046</strong></td><td style="text-align: center;">±0.0032</td><td style="text-align: left;">Medium-quality product variant indicator</td></tr><tr><td style="text-align: center;"><strong>8</strong></td><td style="text-align: left;"><code class="inline-code">Type_H</code></td><td style="text-align: center;"><strong>0.0028</strong></td><td style="text-align: center;">±0.0035</td><td style="text-align: left;">High-quality product variant indicator</td></tr></tbody></table></div>
+<div class="table-wrapper"><table class="academic-table"><thead><tr><th style="text-align: center;">Rank</th><th style="text-align: left;">Transformed Feature</th><th style="text-align: center;">Importance (PR-AUC Drop)</th><th style="text-align: center;">Std Dev (±)</th><th style="text-align: left;">Physical Interpretation</th></tr></thead><tbody><tr><td style="text-align: center;"><strong>1</strong></td><td style="text-align: left;"><code class="inline-code">Torque [Nm]</code></td><td style="text-align: center;"><strong>0.5354</strong></td><td style="text-align: center;">±0.0198</td><td style="text-align: left;">Mechanical resistance torque; dominant driver of overstrain and motor power failure</td></tr><tr><td style="text-align: center;"><strong>2</strong></td><td style="text-align: left;"><code class="inline-code">Air temperature [K]</code></td><td style="text-align: center;"><strong>0.5005</strong></td><td style="text-align: center;">±0.0373</td><td style="text-align: left;">Ambient environmental heat; dictates heat dissipation gradient <span class="math-inline">$\Delta T$</span></td></tr><tr><td style="text-align: center;"><strong>3</strong></td><td style="text-align: left;"><code class="inline-code">Rotational speed [rpm]</code></td><td style="text-align: center;"><strong>0.4877</strong></td><td style="text-align: center;">±0.0149</td><td style="text-align: left;">Spindle velocity; governs cutting speed and motor power (<span class="math-inline">$P = \tau \cdot \omega$</span>)</td></tr><tr><td style="text-align: center;"><strong>4</strong></td><td style="text-align: left;"><code class="inline-code">Tool wear [min]</code></td><td style="text-align: center;"><strong>0.2687</strong></td><td style="text-align: center;">±0.0214</td><td style="text-align: left;">Cumulative cutter contact duration; triggers tool wear failure and accelerates strain</td></tr><tr><td style="text-align: center;"><strong>5</strong></td><td style="text-align: left;"><code class="inline-code">Process temperature [K]</code></td><td style="text-align: center;"><strong>0.2561</strong></td><td style="text-align: center;">±0.0184</td><td style="text-align: left;">Cutting friction temperature; determines thermal dissipation failure threshold</td></tr><tr><td style="text-align: center;"><strong>6</strong></td><td style="text-align: left;"><code class="inline-code">Type_L</code></td><td style="text-align: center;"><strong>0.0559</strong></td><td style="text-align: center;">±0.0333</td><td style="text-align: left;">Low-quality product variant indicator (mass production tolerance)</td></tr><tr><td style="text-align: center;"><strong>7</strong></td><td style="text-align: left;"><code class="inline-code">Type_M</code></td><td style="text-align: center;"><strong>0.0000</strong></td><td style="text-align: center;">±0.0000</td><td style="text-align: left;">Medium-quality product variant indicator</td></tr><tr><td style="text-align: center;"><strong>8</strong></td><td style="text-align: left;"><code class="inline-code">Type_H</code></td><td style="text-align: center;"><strong>0.0000</strong></td><td style="text-align: center;">±0.0000</td><td style="text-align: left;">High-quality product variant indicator</td></tr></tbody></table></div>
 
-<p class="table-note"><em>(Note: Existing generated table artifact is saved at <code class="inline-code">reports/tables/feature_importance.csv</code> and publication figure at <code class="inline-code">reports/figures/feature_importance.png</code>)</em>.</p>
+<p class="table-note"><em>(Note: Generated table artifact is saved at <code class="inline-code">reports/tables/feature_importance.csv</code> and publication figure at <code class="inline-code">reports/figures/feature_importance.png</code>)</em>.</p>
 
 <div class="code-block-container ascii-container"><pre><code class="ascii-art">+-------------------------------------------------------------------------------------------------+
 |                         RANKED PERMUTATION IMPORTANCE (PR-AUC DROP)                             |
 +-------------------------------------------------------------------------------------------------+
-| Torque [Nm]             [##################################################] 0.5985             |
-| Air temperature [K]     [##########################################        ] 0.5062             |
-| Rotational speed [rpm]  [###################################               ] 0.4183             |
-| Tool wear [min]         [###########################                       ] 0.3242             |
-| Process temperature [K] [######################                            ] 0.2660             |
-| Type_L                  [##                                                ] 0.0273             |
-| Type_M                  [#                                                 ] 0.0046             |
-| Type_H                  [#                                                 ] 0.0028             |
+| Torque [Nm]             [##################################################] 0.5354             |
+| Air temperature [K]     [###############################################   ] 0.5005             |
+| Rotational speed [rpm]  [#############################################     ] 0.4877             |
+| Tool wear [min]         [#########################                         ] 0.2687             |
+| Process temperature [K] [########################                          ] 0.2561             |
+| Type_L                  [#####                                             ] 0.0559             |
+| Type_M                  [                                                  ] 0.0000             |
+| Type_H                  [                                                  ] 0.0000             |
 +-------------------------------------------------------------------------------------------------+</code></pre></div>
 
-<h3 id="83-physical-domain-interpretations" class="academic-h3">8.3 Physical Domain Interpretations</h3>
+<div class="code-block-container ascii-container"><pre><code class="ascii-art">
+### 8.3 Physical Domain Interpretations
+The empirical feature ranking perfectly mirrors the underlying engineering dynamics of milling operations:
+- **Torque and Rotational Speed**: These two variables dominate because mechanical motor power is their direct product:
+  $$P = \tau \cdot \omega = \tau \cdot \left( \text{rpm} \cdot \frac{2\pi}{60} \right)$$
+  When power falls below 3500 W (stalling/underload) or exceeds 9000 W (overload), Power Failure (`PWF`) occurs. Furthermore, cutting torque governs Overstrain Failure (`OSF`).
+- **Air and Process Temperatures**: Thermal dissipation failure (`HDF`) occurs when heat generated during cutting cannot dissipate into ambient air. The physical trigger is a thermal gradient $\Delta T = T_{\text{process}} - T_{\text{air}} &lt; 8.6\text{ K}$ occurring simultaneously with low spindle speed (&lt; 1380 rpm).
+- **Tool Wear**: Cutter wear accumulates linearly with cutting contact minutes. When wear exceeds 200–240 minutes, Tool Wear Failure (`TWF`) is triggered, and cutter contact friction accelerates torque spikes.
+- **Product Type**: Product variants (`L`, `M`, `H`) show minimal predictive impact (drops &lt; 0.03), confirming that real-time sensor physics overwhelmingly govern equipment failure regardless of workpiece grade.
 
-<p class="body-para">The empirical feature ranking perfectly mirrors the underlying engineering dynamics of milling operations:</p>
+### 8.4 Local Instance Explanations via TreeSHAP
+For single-machine operational monitoring, MaintainIQ integrates `TreeSHAP` (`shap.TreeExplainer`) in `src/explain.py`. For any input sample $x$, TreeSHAP calculates the exact game-theoretic additive contribution $\phi_i$ of each feature such that:
+$$f(x) = \phi_0 + \sum_{i=1}^M \phi_i(x)$$
+where $\phi_0 = \mathbb{E}[f(x)]$ is the fleet base expectation. In the Streamlit dashboard, when an operator enters sensor readings for a high-risk machine, TreeSHAP decomposes the failure probability, indicating precisely which variable pushed the machine over the alert threshold (e.g., highlighting that excessive torque of 65 Nm contributed +0.38 to the probability score).
 
-<ul class="report-list">
-<li>
-<strong>Torque and Rotational Speed</strong>: These two variables dominate because mechanical motor power is their direct product:
-<div class="math-display">$$P = \tau \cdot \omega = \tau \cdot \left( \text{rpm} \cdot \frac{2\pi}{60} \right)$$</div>
-<p class="list-continuation">When power falls below 3500 W (stalling/underload) or exceeds 9000 W (overload), Power Failure (<code class="inline-code">PWF</code>) occurs. Furthermore, cutting torque governs Overstrain Failure (<code class="inline-code">OSF</code>).</p>
-</li><li>
-<strong>Air and Process Temperatures</strong>: Thermal dissipation failure (<code class="inline-code">HDF</code>) occurs when heat generated during cutting cannot dissipate into ambient air. The physical trigger is a thermal gradient <span class="math-inline">$\Delta T = T_{\text{process}} - T_{\text{air}} < 8.6\text{ K}$</span> occurring simultaneously with low spindle speed (< 1380 rpm).
-</li><li>
-<strong>Tool Wear</strong>: Cutter wear accumulates linearly with cutting contact minutes. When wear exceeds 200–240 minutes, Tool Wear Failure (<code class="inline-code">TWF</code>) is triggered, and cutter contact friction accelerates torque spikes.
-</li><li>
-<strong>Product Type</strong>: Product variants (<code class="inline-code">L</code>, <code class="inline-code">M</code>, <code class="inline-code">H</code>) show minimal predictive impact (drops < 0.03), confirming that real-time sensor physics overwhelmingly govern equipment failure regardless of workpiece grade.
-</li></ul>
+### 8.5 Model Explanation vs. Physical Causation Disclaimer
+A fundamental tenet of data science ethics enforced throughout MaintainIQ is the **causation disclaimer**:
+&gt; *Feature importance scores and SHAP values quantify the statistical dependencies and loss-minimizing reliance utilized by the mathematical estimator. They represent correlation and predictive utility within the dataset, not physical or mechanical causation.*
 
-<h3 id="84-local-instance-explanations-via-treeshap" class="academic-h3">8.4 Local Instance Explanations via TreeSHAP</h3>
+---
 
-<p class="body-para">For single-machine operational monitoring, MaintainIQ integrates <code class="inline-code">TreeSHAP</code> (<code class="inline-code">shap.TreeExplainer</code>) in <code class="inline-code">src/explain.py</code>. For any input sample <span class="math-inline">$x$</span>, TreeSHAP calculates the exact game-theoretic additive contribution <span class="math-inline">$\phi_i$</span> of each feature such that:</p>
+## 9. Streamlit UI Development and Deployment
 
-<div class="math-display">$$f(x) = \phi_0 + \sum_{i=1}^M \phi_i(x)$$</div>
+### 9.1 Dashboard Architecture and User Interface
+MaintainIQ is deployed as an interactive, multi-tab Streamlit dashboard (`app.py`), providing an accessible operational interface for both reliability engineers and technicians.
+</code></pre></div>
 
-<p class="body-para">where <span class="math-inline">$\phi_0 = \mathbb{E}[f(x)]$</span> is the fleet base expectation. In the Streamlit dashboard, when an operator enters sensor readings for a high-risk machine, TreeSHAP decomposes the failure probability, indicating precisely which variable pushed the machine over the alert threshold (e.g., highlighting that excessive torque of 65 Nm contributed +0.38 to the probability score).</p>
+<p class="body-para">+-------------------------------------------------------------------------------------------------+</p>
 
-<h3 id="85-model-explanation-vs-physical-causation-disclaimer" class="academic-h3">8.5 Model Explanation vs. Physical Causation Disclaimer</h3>
+<p class="body-para">+-------------------+-------------------+-------------------+-------------------+-----------------+</p>
 
-<p class="body-para">A fundamental tenet of data science ethics enforced throughout MaintainIQ is the <strong>causation disclaimer</strong>:</p>
+<div class="table-wrapper"><table class="academic-table"><thead><tr><th style="text-align: left;">Tab 1: System</th><th style="text-align: left;">Tab 2: Single</th><th style="text-align: left;">Tab 3: CSV Batch</th><th style="text-align: left;">Tab 4: Model</th><th style="text-align: left;">Tab 5: Explain-</th><th style="text-align: left;">Tab 6: Syllabus</th></tr></thead><tbody></tbody></table></div>
 
-<blockquote class="academic-blockquote"><p><em>Feature importance scores and SHAP values quantify the statistical dependencies and loss-minimizing reliance utilized by the mathematical estimator. They represent correlation and predictive utility within the dataset, not physical or mechanical causation.</em></p></blockquote>
+<p class="body-para">+-------------------+-------------------+-------------------+-------------------+------------------+------------------+</p>
 
-<hr class="section-divider" />
+<div class="code-block-container ascii-container"><pre><code class="ascii-art">
+### 9.2 Application Tabs &amp; Implemented Features
+1. **Tab 1: System Overview**:
+   - Displays real-time operational status, total records (10,000), dataset failure incidence (3.39%), best model identifier (Decision Tree), and primary evaluation strategy (PR-AUC on stratified 80/20 split).
+   - Provides descriptions of the five industrial failure modes (`TWF`, `HDF`, `PWF`, `OSF`, `RNF`).
+   - Features a prominent **Synthetic Dataset Disclosure &amp; Ethics Banner**, disclosing the simulator origin and academic scope.
+   - Includes an expandable preview of raw dataset telemetry.
+2. **Tab 2: Single Machine Failure Risk Scoring**:
+   - Provides interactive inputs (sliders and selectors) for all six approved features: `Type` (L/M/H), `Air temperature [K]`, `Process temperature [K]`, `Rotational speed [rpm]`, `Torque [Nm]`, and `Tool wear [min]`.
+   - Offers quick-preset scenario buttons for demonstration: Nominal Operation, High Torque Overload, Extreme Tool Wear, and Heat Dissipation Breakdown.
+   - Displays real-time physical domain telemetry indicators:
+     - Temperature Delta ($\Delta T = T_{\text{process}} - T_{\text{air}}$), alerting if $\Delta T &lt; 8.6\text{ K}$.
+     - Mechanical Spindle Power ($P = \tau \cdot \omega$), alerting if outside safe 3500–9000 W bounds.
+     - Overstrain Index ($\tau \times \text{wear}$), warning if exceeding 11,000.
+   - Employs calibrated model-based operational risk bands:
+     - **Low Risk (probability &lt; 30%)**: Green status card indicating normal operations.
+     - **Medium Risk (30% $\le$ probability &lt; 70%)**: Amber warning recommending scheduling inspection.
+     - **High Risk (probability $\ge$ 70%)**: Red alert indicating probable failure requiring immediate maintenance.
+   - Features an integrated TreeSHAP expander detailing local feature attributions.
+3. **Tab 3: CSV Batch Telemetry Evaluation**:
+   - Supports drag-and-drop batch upload of telemetry CSV files.
+   - Executes automated schema validation: checks for required features, ignores non-feature columns (`UDI`, `Product ID`), and automatically excludes ground-truth leakage columns (`TWF`, `HDF`, `PWF`, `OSF`, `RNF`, `Machine failure`).
+   - Runs high-throughput batch prediction via `predict_batch_dataframe()`.
+   - Displays diagnostic summary metrics: total records evaluated, detected failure count, high-risk machine count, and fleet failure rate.
+   - Previews annotated telemetry and provides an export button to download the scored CSV with appended `predicted_failure`, `failure_probability`, and `risk_level` columns.
+4. **Tab 4: Model Benchmarks &amp; Classifier Comparison**:
+   - Displays the full four-model comparison table loaded dynamically from `reports/tables/model_comparison.csv` with top metrics highlighted.
+   - Generates an interactive grouped bar chart across PR-AUC, F1-Score, Recall, Precision, Accuracy, and ROC-AUC.
+   - Displays confusion matrix breakdown cards for each classifier (TP, FN, FP, TN, and per-sample latency).
+   - Includes an educational expander explaining class imbalance mitigation strategies.
+5. **Tab 5: Model Interpretability &amp; Explainability**:
+   - Displays the publication-quality global permutation feature importance figure loaded from `reports/figures/feature_importance.png`.
+   - Renders the ranked feature importance table as a semantic HTML table (`st.table`) with explicit columns (`Rank`, `Feature`, `PR-AUC Drop`, `Std Dev`), avoiding canvas rendering artifacts.
+   - Provides engineering domain insights mapping feature reliance to physical machine components.
+   - Concludes with the formal scientific causation disclaimer.
+6. **Tab 6: Optional Syllabus Experimental Extensions**:
+   - **K-Means Operating Regime Clustering**: Unsupervised grouping of machines into operational regimes (e.g., Heavy Load, Nominal, High Speed) with cluster profiling.
+   - **Linear Regression Physical Parameter Modeling**: Continuous torque estimation ($R^2$, MAE, RMSE) demonstrating regression capability without target leakage into binary failure classification.
 
-<h2 id="9-streamlit-ui-development-and-deployment" class="academic-h2"><span id="9-streamlit-dashboard-architecture-deployment-and-user-workflow" class="toc-anchor-target"></span>9. Streamlit UI Development and Deployment</h2>
+---
 
-<h3 id="91-dashboard-architecture-and-user-interface" class="academic-h3">9.1 Dashboard Architecture and User Interface</h3>
+## 10. Discussion, Limitations, and Future Directions
 
-<p class="body-para">MaintainIQ is deployed as an interactive, multi-tab Streamlit dashboard (<code class="inline-code">app.py</code>), providing an accessible operational interface for both reliability engineers and technicians.</p>
+### 10.1 Discussion of Findings
+The empirical results demonstrate that predicting rare failure events from multi-sensor machine telemetry is highly viable when disciplined, leakage-free pipelines and cost-sensitive classification architectures are employed. The superiority of the Decision Tree Classifier (PR-AUC of 0.7291 vs. Logistic Regression PR-AUC of 0.3818) underscores the inherently non-linear nature of machine degradation, where failure thresholds represent complex interactions between torque, thermal gradients, and mechanical contact time.
 
-<div class="code-block-container ascii-container"><pre><code class="ascii-art">+-------------------------------------------------------------------------------------------------+
-|                                 MAINTAINIQ STREAMLIT APP NAVIGATION                             |
-+-------------------+-------------------+-------------------+-------------------+-----------------+
-| Tab 1: System     | Tab 2: Single     | Tab 3: CSV Batch  | Tab 4: Model      | Tab 5:          |
-| Overview          | Risk Scoring      | Evaluation        | Benchmarks        | Explainability  |
-+-------------------+-------------------+-------------------+-------------------+-----------------+</code></pre></div>
+Furthermore, our evaluation confirms the theoretical findings of Saito &amp; Rehmsmeier [8]: high ROC-AUC scores (0.9070 for Logistic Regression, 0.9655 for SVM) create a false sense of security by obscuring severe disparities in precision and false alarm rates. PR-AUC proved indispensable as the primary evaluation criterion.
 
-<h3 id="92-application-tabs-implemented-features" class="academic-h3">9.2 Application Tabs & Implemented Features</h3>
+### 10.2 Project Limitations
+1. **Simulation Benchmark**: The UCI AI4I 2020 dataset was generated by a physical simulation model [1]. While mathematically rigorous, it lacks real-world shop-floor phenomena such as vibration harmonics, sensor drift, electrical noise, intermittent communication dropouts, and maintenance log entry errors.
+2. **Binary vs. Component Failure Prediction**: MaintainIQ models overall binary machine failure. While the dataset contains failure mode labels, predicting specific modes simultaneously requires multi-label or multi-class architectures with even more extreme class imbalance (e.g., Tool Wear Failure occurs in only 45 of 10,000 cycles).
+3. **Absence of Temporal Sequence History**: The dataset provides cross-sectional operational cycle snapshots rather than continuous time-series sensor sequences, precluding the use of recurrent neural networks (LSTMs) or temporal convolutional networks.
 
-<ol class="report-list">
-<li>
-<strong>Tab 1: System Overview</strong>:
-<ul class="report-list">
-<li>
-Displays real-time operational status, total records (10,000), dataset failure incidence (3.39%), best model identifier (XGBoost), and primary evaluation strategy (PR-AUC on stratified 80/20 split).
-</li><li>
-Provides descriptions of the five industrial failure modes (<code class="inline-code">TWF</code>, <code class="inline-code">HDF</code>, <code class="inline-code">PWF</code>, <code class="inline-code">OSF</code>, <code class="inline-code">RNF</code>).
-</li><li>
-Features a prominent <strong>Synthetic Dataset Disclosure & Ethics Banner</strong>, disclosing the simulator origin and academic scope.
-</li><li>
-Includes an expandable preview of raw dataset telemetry.
-</li></ul>
-</li><li>
-<strong>Tab 2: Single Machine Failure Risk Scoring</strong>:
-<ul class="report-list">
-<li>
-Provides interactive inputs (sliders and selectors) for all six approved features: <code class="inline-code">Type</code> (L/M/H), <code class="inline-code">Air temperature [K]</code>, <code class="inline-code">Process temperature [K]</code>, <code class="inline-code">Rotational speed [rpm]</code>, <code class="inline-code">Torque [Nm]</code>, and <code class="inline-code">Tool wear [min]</code>.
-</li><li>
-Offers quick-preset scenario buttons for demonstration: Nominal Operation, High Torque Overload, Extreme Tool Wear, and Heat Dissipation Breakdown.
-</li><li>
-Displays real-time physical domain telemetry indicators:
-<ul class="report-list">
-<li>
-Temperature Delta (<span class="math-inline">$\Delta T = T_{\text{process}} - T_{\text{air}}$</span>), alerting if <span class="math-inline">$\Delta T < 8.6\text{ K}$</span>.
-</li><li>
-Mechanical Spindle Power (<span class="math-inline">$P = \tau \cdot \omega$</span>), alerting if outside safe 3500–9000 W bounds.
-</li><li>
-Overstrain Index (<span class="math-inline">$\tau \times \text{wear}$</span>), warning if exceeding 11,000.
-</li></ul>
-</li><li>
-Employs calibrated model-based operational risk bands:
-<ul class="report-list">
-<li>
-<strong>Low Risk (probability < 30%)</strong>: Green status card indicating normal operations.
-</li><li>
-<strong>Medium Risk (30% <span class="math-inline">$\le$</span> probability < 70%)</strong>: Amber warning recommending scheduling inspection.
-</li><li>
-<strong>High Risk (probability <span class="math-inline">$\ge$</span> 70%)</strong>: Red alert indicating probable failure requiring immediate maintenance.
-</li></ul>
-</li><li>
-Features an integrated TreeSHAP expander detailing local feature attributions.
-</li></ul>
-</li><li>
-<strong>Tab 3: CSV Batch Telemetry Evaluation</strong>:
-<ul class="report-list">
-<li>
-Supports drag-and-drop batch upload of telemetry CSV files.
-</li><li>
-Executes automated schema validation: checks for required features, ignores non-feature columns (<code class="inline-code">UDI</code>, <code class="inline-code">Product ID</code>), and automatically excludes ground-truth leakage columns (<code class="inline-code">TWF</code>, <code class="inline-code">HDF</code>, <code class="inline-code">PWF</code>, <code class="inline-code">OSF</code>, <code class="inline-code">RNF</code>, <code class="inline-code">Machine failure</code>).
-</li><li>
-Runs high-throughput batch prediction via <code class="inline-code">predict_batch_dataframe()</code>.
-</li><li>
-Displays diagnostic summary metrics: total records evaluated, detected failure count, high-risk machine count, and fleet failure rate.
-</li><li>
-Previews annotated telemetry and provides an export button to download the scored CSV with appended <code class="inline-code">predicted_failure</code>, <code class="inline-code">failure_probability</code>, and <code class="inline-code">risk_level</code> columns.
-</li></ul>
-</li><li>
-<strong>Tab 4: Model Benchmarks & Classifier Comparison</strong>:
-<ul class="report-list">
-<li>
-Displays the full four-model comparison table loaded dynamically from <code class="inline-code">reports/tables/model_comparison.csv</code> with top metrics highlighted.
-</li><li>
-Generates an interactive grouped bar chart across PR-AUC, F1-Score, Recall, Precision, and ROC-AUC.
-</li><li>
-Displays confusion matrix breakdown cards for each classifier (TP, FN, FP, TN, and per-sample latency).
-</li><li>
-Includes an educational expander explaining class imbalance mitigation strategies.
-</li></ul>
-</li><li>
-<strong>Tab 5: Model Interpretability & Explainability</strong>:
-<ul class="report-list">
-<li>
-Displays the publication-quality global permutation feature importance figure loaded from <code class="inline-code">reports/figures/feature_importance.png</code>.
-</li><li>
-Renders the ranked feature importance table as a semantic HTML table (<code class="inline-code">st.table</code>) with explicit columns (<code class="inline-code">Rank</code>, <code class="inline-code">Feature</code>, <code class="inline-code">PR-AUC Drop</code>, <code class="inline-code">Std Dev</code>), avoiding canvas rendering artifacts.
-</li><li>
-Provides engineering domain insights mapping feature reliance to physical machine components.
-</li><li>
-Concludes with the formal scientific causation disclaimer.
-</li></ul>
-</li></ol>
+### 10.3 Future Research Directions
+- **Multivariate Time-Series Modeling**: Integrating continuous vibration accelerometer telemetry sampled at kilohertz frequencies to capture bearing acoustic emissions prior to thermal spikes.
+- **Multimodal Failure Mode Multi-Labeling**: Expanding the architecture to simultaneously predict both the failure likelihood and the specific component mode (`TWF`, `HDF`, `PWF`, `OSF`) using multi-label cost-sensitive learning.
+- **Edge Microcontroller Deployment**: Quantizing the trained Decision Tree model using ONNX Runtime or C-code transpilation (e.g., `m2cgen`) for sub-microsecond execution directly on industrial microcontrollers (e.g., STM32 or Raspberry Pi edge gateways).
 
-<hr class="section-divider" />
+---
 
-<h2 id="10-discussion-limitations-and-future-directions" class="academic-h2">10. Discussion, Limitations, and Future Directions</h2>
+## 11. Conclusion
 
-<h3 id="101-discussion-of-findings" class="academic-h3">10.1 Discussion of Findings</h3>
+This capstone project designed, implemented, evaluated, and deployed **MaintainIQ**, an end-to-end machine learning system for industrial predictive maintenance and explainable failure risk assessment. Benchmarking across the UCI AI4I 2020 dataset demonstrated that the cost-sensitive **Decision Tree Classifier** achieved superior operational performance (**PR-AUC of 0.7291**, **F1-score of 0.5644**, **Recall of 83.82%**, **Precision of 42.54%**, and **Accuracy of 95.60%**), vastly outperforming linear baselines while maintaining an inference latency of **0.94 µs per sample**.
 
-<p class="body-para">The empirical results demonstrate that predicting rare failure events from multi-sensor machine telemetry is highly viable when disciplined, leakage-free pipelines and appropriate cost-sensitive ensemble architectures are employed. The superiority of gradient boosting (XGBoost PR-AUC of 0.8283 vs. Logistic Regression PR-AUC of 0.3818) underscores the inherently non-linear nature of machine degradation, where failure thresholds represent complex interactions between torque, thermal gradients, and mechanical contact time.</p>
+Through rigorous methodological enforcement—strictly separating feature inputs from target leakage columns, quarantining the 80/20 stratified test split, and embedding all preprocessing within scikit-learn pipelines—MaintainIQ eliminates data leakage. By integrating global permutation importance and local TreeSHAP explainability, the system translates mathematical predictions into actionable engineering insights, establishing cutting torque, thermal gradients, and rotational velocity as the primary failure indicators. Packaged into a responsive Streamlit dashboard with optional syllabus-permitted experimental extensions (K-Means and Linear Regression), MaintainIQ provides a comprehensive prototype illustrating how applied machine learning can advance modern predictive maintenance in smart manufacturing.
 
-<p class="body-para">Furthermore, our evaluation confirms the theoretical findings of Saito & Rehmsmeier [8]: high ROC-AUC scores (0.9070 for Logistic Regression, 0.9651 for XGBoost) create a false sense of security by obscuring severe disparities in precision and false alarm rates. PR-AUC proved indispensable as the primary evaluation criterion.</p>
+---
 
-<h3 id="102-project-limitations" class="academic-h3">10.2 Project Limitations</h3>
+## 12. References
 
-<ol class="report-list">
-<li>
-<strong>Simulation Benchmark</strong>: The UCI AI4I 2020 dataset was generated by a physical simulation model [1]. While mathematically rigorous, it lacks real-world shop-floor phenomena such as vibration harmonics, sensor drift, electrical noise, intermittent communication dropouts, and maintenance log entry errors.
-</li><li>
-<strong>Binary vs. Component Failure Prediction</strong>: MaintainIQ models overall binary machine failure. While the dataset contains failure mode labels, predicting specific modes simultaneously requires multi-label or multi-class architectures with even more extreme class imbalance (e.g., Tool Wear Failure occurs in only 45 of 10,000 cycles).
-</li><li>
-<strong>Absence of Temporal Sequence History</strong>: The dataset provides cross-sectional operational cycle snapshots rather than continuous time-series sensor sequences, precluding the use of recurrent neural networks (LSTMs) or temporal convolutional networks.
-</li></ol>
+[1] S. Matzka, &quot;Explainable Artificial Intelligence for Predictive Maintenance Applications,&quot; in *Proceedings of the 2020 Third International Conference on Artificial Intelligence for Industries (AI4I)*, Irvine, CA, USA, 2020, pp. 69–74. DOI: [10.1109/AI4I49448.2020.00023](https://doi.org/10.1109/AI4I49448.2020.00023).
 
-<h3 id="103-future-research-directions" class="academic-h3">10.3 Future Research Directions</h3>
+[2] T. P. Carvalho, F. A. A. M. N. Soares, R. Vita, R. da P. Francisco, J. P. Basto, and S. G. S. Alcalá, &quot;A systematic literature review of machine learning methods applied to predictive maintenance,&quot; *Computers &amp; Industrial Engineering*, vol. 137, art. no. 106024, Nov. 2019. DOI: [10.1016/j.cie.2019.106024](https://doi.org/10.1016/j.cie.2019.106024).
 
-<ul class="report-list">
-<li>
-<strong>Multivariate Time-Series Modeling</strong>: Integrating continuous vibration accelerometer telemetry sampled at kilohertz frequencies to capture bearing acoustic emissions prior to thermal spikes.
-</li><li>
-<strong>Multimodal Failure Mode Multi-Labeling</strong>: Expanding the architecture to simultaneously predict both the failure likelihood and the specific component mode (<code class="inline-code">TWF</code>, <code class="inline-code">HDF</code>, <code class="inline-code">PWF</code>, <code class="inline-code">OSF</code>) using multi-label cost-sensitive learning.
-</li><li>
-<strong>Edge Microcontroller Deployment</strong>: Quantizing the trained XGBoost model using ONNX Runtime or Treelite for sub-microsecond execution directly on industrial microcontrollers (e.g., STM32 or Raspberry Pi edge gateways).
-</li></ul>
+[3] M. Alnahhal, M. I. Tabash, S. K. Safi, M. S. M. Al-Absy, and Z. Mamadiyarov, &quot;A Comparative Study of Imbalance-Handling Methods in Multiclass Predictive Maintenance,&quot; *Computation*, vol. 14, no. 4, art. no. 88, 2026. DOI: [10.3390/computation14040088](https://doi.org/10.3390/computation14040088).
 
-<hr class="section-divider" />
+[4] A. Theissler, J. Pérez-Velázquez, M. Kettelgerdes, and G. Elger, &quot;Predictive maintenance enabled by machine learning: Use cases and challenges in the automotive industry,&quot; *Reliability Engineering &amp; System Safety*, vol. 215, art. no. 107864, Nov. 2021. DOI: [10.1016/j.ress.2021.107864](https://doi.org/10.1016/j.ress.2021.107864).
 
-<h2 id="11-conclusion" class="academic-h2">11. Conclusion</h2>
+[5] Z. Marmoucha, M. El Khaili, A. Soulhi, H. El Hailouch, and H. Nhaila, &quot;Enhancing Predictive Accuracy and Operational Performance Based on Entropy–TOPSIS Framework for Machine Learning Model Selection for Predictive Maintenance,&quot; *Applied Sciences*, vol. 16, no. 17, art. no. 8666, 2026. DOI: [10.3390/app16178666](https://doi.org/10.3390/app16178666).
 
-<p class="body-para">This capstone project designed, implemented, evaluated, and deployed <strong>MaintainIQ</strong>, an end-to-end machine learning system for industrial predictive maintenance and explainable failure risk assessment. Benchmarking across the UCI AI4I 2020 dataset demonstrated that tree-based gradient boosting (XGBoost) configured with training-derived class-imbalance weighting achieved superior operational performance (<strong>PR-AUC of 0.8283</strong>, <strong>F1-score of 0.7376</strong>, <strong>Recall of 76.47%</strong>, and <strong>Precision of 71.23%</strong>), vastly outperforming linear baselines while maintaining an inference latency of <strong>1.38 µs per sample</strong>.</p>
+[6] S. Chatterjee and Y.-C. Byun, &quot;Highly imbalanced fault classification of wind turbines using data resampling and hybrid ensemble method approach,&quot; *Engineering Applications of Artificial Intelligence*, vol. 126, art. no. 107104, Nov. 2023. DOI: [10.1016/j.engappai.2023.107104](https://doi.org/10.1016/j.engappai.2023.107104).
 
-<p class="body-para">Through rigorous methodological enforcement—strictly separating feature inputs from target leakage columns, quarantining the 80/20 stratified test split, and embedding all preprocessing within scikit-learn pipelines—MaintainIQ eliminates data leakage. By integrating global permutation importance and local TreeSHAP explainability, the system translates mathematical predictions into actionable engineering insights, establishing cutting torque, thermal gradients, and rotational velocity as the primary failure indicators. Packaged into a responsive Streamlit dashboard, MaintainIQ provides a comprehensive prototype illustrating how applied machine learning can advance modern predictive maintenance in smart manufacturing.</p>
+[7] M. H. Abidi, M. K. Mohammed, and H. Alkhalefah, &quot;Predictive Maintenance Planning for Industry 4.0 Using Machine Learning for Sustainable Manufacturing,&quot; *Sustainability*, vol. 14, no. 6, art. no. 3387, Mar. 2022. DOI: [10.3390/su14063387](https://doi.org/10.3390/su14063387).
 
-<hr class="section-divider" />
+[8] T. Saito and M. Rehmsmeier, &quot;The Precision-Recall Plot Is More Informative than the ROC Plot When Evaluating Binary Classifiers on Imbalanced Datasets,&quot; *PLOS ONE*, vol. 10, no. 3, art. no. e0118432, Mar. 2015. DOI: [10.1371/journal.pone.0118432](https://doi.org/10.1371/journal.pone.0118432).
 
-<h2 id="12-references" class="academic-h2">12. References</h2>
+[9] S. M. Lundberg, G. Erion, H. Chen, A. DeGrave, J. M. Prutkin, B. Nair, R. Katz, J. Himmelfarb, N. Bansal, and S.-I. Lee, &quot;From local explanations to global understanding with explainable AI for trees,&quot; *Nature Machine Intelligence*, vol. 2, no. 1, pp. 56–67, Jan. 2020. DOI: [10.1038/s42256-019-0138-9](https://doi.org/10.1038/s42256-019-0138-9).
 
-<div class="reference-item" id="ref-1"><span class="ref-num">[1]</span> <span class="ref-body">S. Matzka, "Explainable Artificial Intelligence for Predictive Maintenance Applications," in <em>Proceedings of the 2020 Third International Conference on Artificial Intelligence for Industries (AI4I)</em>, Irvine, CA, USA, 2020, pp. 69–74. DOI: <a href="https://doi.org/10.1109/AI4I49448.2020.00023" class="external-link" target="_blank" rel="noopener noreferrer">10.1109/AI4I49448.2020.00023</a>.</span></div>
+---
 
-<div class="reference-item" id="ref-2"><span class="ref-num">[2]</span> <span class="ref-body">T. P. Carvalho, F. A. A. M. N. Soares, R. Vita, R. da P. Francisco, J. P. Basto, and S. G. S. Alcalá, "A systematic literature review of machine learning methods applied to predictive maintenance," <em>Computers & Industrial Engineering</em>, vol. 137, art. no. 106024, Nov. 2019. DOI: <a href="https://doi.org/10.1016/j.cie.2019.106024" class="external-link" target="_blank" rel="noopener noreferrer">10.1016/j.cie.2019.106024</a>.</span></div>
+## 13. Appendix: Reproducibility and System Commands
 
-<div class="reference-item" id="ref-3"><span class="ref-num">[3]</span> <span class="ref-body">M. Alnahhal, M. I. Tabash, S. K. Safi, M. S. M. Al-Absy, and Z. Mamadiyarov, "A Comparative Study of Imbalance-Handling Methods in Multiclass Predictive Maintenance," <em>Computation</em>, vol. 14, no. 4, art. no. 88, 2026. DOI: <a href="https://doi.org/10.3390/computation14040088" class="external-link" target="_blank" rel="noopener noreferrer">10.3390/computation14040088</a>.</span></div>
+All experimental results, trained artifacts, and reports can be fully reproduced on a fresh clone using the verified commands below:
 
-<div class="reference-item" id="ref-4"><span class="ref-num">[4]</span> <span class="ref-body">A. Theissler, J. Pérez-Velázquez, M. Kettelgerdes, and G. Elger, "Predictive maintenance enabled by machine learning: Use cases and challenges in the automotive industry," <em>Reliability Engineering & System Safety</em>, vol. 215, art. no. 107864, Nov. 2021. DOI: <a href="https://doi.org/10.1016/j.ress.2021.107864" class="external-link" target="_blank" rel="noopener noreferrer">10.1016/j.ress.2021.107864</a>.</span></div>
+### 1. Environment Setup (macOS / Python 3.12)</code></pre></div>
 
-<div class="reference-item" id="ref-5"><span class="ref-num">[5]</span> <span class="ref-body">Z. Marmoucha, M. El Khaili, A. Soulhi, H. El Hailouch, and H. Nhaila, "Enhancing Predictive Accuracy and Operational Performance Based on Entropy–TOPSIS Framework for Machine Learning Model Selection for Predictive Maintenance," <em>Applied Sciences</em>, vol. 16, no. 17, art. no. 8666, 2026. DOI: <a href="https://doi.org/10.3390/app16178666" class="external-link" target="_blank" rel="noopener noreferrer">10.3390/app16178666</a>.</span></div>
-
-<div class="reference-item" id="ref-6"><span class="ref-num">[6]</span> <span class="ref-body">S. Chatterjee and Y.-C. Byun, "Highly imbalanced fault classification of wind turbines using data resampling and hybrid ensemble method approach," <em>Engineering Applications of Artificial Intelligence</em>, vol. 126, art. no. 107104, Nov. 2023. DOI: <a href="https://doi.org/10.1016/j.engappai.2023.107104" class="external-link" target="_blank" rel="noopener noreferrer">10.1016/j.engappai.2023.107104</a>.</span></div>
-
-<div class="reference-item" id="ref-7"><span class="ref-num">[7]</span> <span class="ref-body">M. H. Abidi, M. K. Mohammed, and H. Alkhalefah, "Predictive Maintenance Planning for Industry 4.0 Using Machine Learning for Sustainable Manufacturing," <em>Sustainability</em>, vol. 14, no. 6, art. no. 3387, Mar. 2022. DOI: <a href="https://doi.org/10.3390/su14063387" class="external-link" target="_blank" rel="noopener noreferrer">10.3390/su14063387</a>.</span></div>
-
-<div class="reference-item" id="ref-8"><span class="ref-num">[8]</span> <span class="ref-body">T. Saito and M. Rehmsmeier, "The Precision-Recall Plot Is More Informative than the ROC Plot When Evaluating Binary Classifiers on Imbalanced Datasets," <em>PLOS ONE</em>, vol. 10, no. 3, art. no. e0118432, Mar. 2015. DOI: <a href="https://doi.org/10.1371/journal.pone.0118432" class="external-link" target="_blank" rel="noopener noreferrer">10.1371/journal.pone.0118432</a>.</span></div>
-
-<div class="reference-item" id="ref-9"><span class="ref-num">[9]</span> <span class="ref-body">S. M. Lundberg, G. Erion, H. Chen, A. DeGrave, J. M. Prutkin, B. Nair, R. Katz, J. Himmelfarb, N. Bansal, and S.-I. Lee, "From local explanations to global understanding with explainable AI for trees," <em>Nature Machine Intelligence</em>, vol. 2, no. 1, pp. 56–67, Jan. 2020. DOI: <a href="https://doi.org/10.1038/s42256-019-0138-9" class="external-link" target="_blank" rel="noopener noreferrer">10.1038/s42256-019-0138-9</a>.</span></div>
-
-<hr class="section-divider" />
-
-<h2 id="13-appendix-reproducibility-and-system-commands" class="academic-h2">13. Appendix: Reproducibility and System Commands</h2>
-
-<p class="body-para">All experimental results, trained artifacts, and reports can be fully reproduced on a fresh clone using the verified commands below:</p>
-
-<h3 id="1-environment-setup-macos-python-312" class="academic-h3">1. Environment Setup (macOS / Python 3.12)</h3>
-
-<div class="code-block-container"><pre><code class="language-bash">python3.12 -m venv .venv
+<p class="body-para">python3.12 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install -r requirements.txt</code></pre></div>
+pip install -r requirements.txt</p>
 
-<h3 id="2-dataset-acquisition-validation" class="academic-h3">2. Dataset Acquisition & Validation</h3>
+<div class="code-block-container ascii-container"><pre><code class="ascii-art">
+### 2. Dataset Acquisition &amp; Validation
+Downloads and verifies the official UCI AI4I 2020 dataset into `data/raw/ai4i2020.csv`:</code></pre></div>
 
-<p class="body-para">Downloads and verifies the official UCI AI4I 2020 dataset into <code class="inline-code">data/raw/ai4i2020.csv</code>:</p>
+<p class="body-para">python scripts/download_data.py</p>
 
-<div class="code-block-container"><pre><code class="language-bash">python scripts/download_data.py</code></pre></div>
+<div class="code-block-container ascii-container"><pre><code class="ascii-art">
+### 3. Pipeline Training &amp; Model Benchmarking
+Performs stratified 80/20 splitting, fits the leak-free preprocessing pipeline, trains all four models, generates `reports/tables/model_comparison.csv` and `reports/tables/model_metrics.json`, and saves the champion Decision Tree pipeline to `models/model.joblib`:</code></pre></div>
 
-<h3 id="3-pipeline-training-model-benchmarking" class="academic-h3">3. Pipeline Training & Model Benchmarking</h3>
+<p class="body-para">python -m src.train</p>
 
-<p class="body-para">Performs stratified 80/20 splitting, fits the leak-free preprocessing pipeline, trains all four models, generates <code class="inline-code">reports/tables/model_comparison.csv</code> and <code class="inline-code">reports/tables/model_metrics.json</code>, and saves the champion XGBoost pipeline to <code class="inline-code">models/model.joblib</code>:</p>
+<div class="code-block-container ascii-container"><pre><code class="ascii-art">
+### 4. Explainability &amp; Feature Importance Generation
+Computes 10-repeat permutation feature importance on the held-out test split, exports `reports/figures/feature_importance.png`, and writes `reports/tables/feature_importance.csv`:</code></pre></div>
 
-<div class="code-block-container"><pre><code class="language-bash">python -m src.train</code></pre></div>
+<p class="body-para">python -m src.explain</p>
 
-<h3 id="4-explainability-feature-importance-generation" class="academic-h3">4. Explainability & Feature Importance Generation</h3>
+<div class="code-block-container ascii-container"><pre><code class="ascii-art">
+### 5. Automated Test Suite Execution
+Executes all 72 unit and integration test assertions across the entire codebase:</code></pre></div>
 
-<p class="body-para">Computes 10-repeat permutation feature importance on the held-out test split, exports <code class="inline-code">reports/figures/feature_importance.png</code>, and writes <code class="inline-code">reports/tables/feature_importance.csv</code>:</p>
+<p class="body-para">python -m pytest tests/ -v</p>
 
-<div class="code-block-container"><pre><code class="language-bash">python -m src.explain</code></pre></div>
+<div class="code-block-container ascii-container"><pre><code class="ascii-art">
+### 6. Interactive Dashboard Launch
+Starts the Streamlit application on local port 8501:</code></pre></div>
 
-<h3 id="5-automated-test-suite-execution" class="academic-h3">5. Automated Test Suite Execution</h3>
+<p class="body-para">streamlit run app.py</p>
 
-<p class="body-para">Executes all 66 unit and integration test assertions across the entire codebase:</p>
-
-<div class="code-block-container"><pre><code class="language-bash">python -m pytest tests/ -v</code></pre></div>
-
-<h3 id="6-interactive-dashboard-launch" class="academic-h3">6. Interactive Dashboard Launch</h3>
-
-<p class="body-para">Starts the Streamlit application on local port 8501:</p>
-
-<div class="code-block-container"><pre><code class="language-bash">streamlit run app.py</code></pre></div>
-
-<p class="body-para">Open browser at: <strong><code class="inline-code">http://localhost:8501</code></strong></p>
+<div class="code-block-container ascii-container"><pre><code class="ascii-art">Open browser at: **`http://localhost:8501`**</code></pre></div>
 
   </div>
 </body>

@@ -19,7 +19,7 @@ from src.train import train_classifier
 
 @pytest.fixture
 def trained_tree_pipeline() -> Pipeline:
-    """Fixture providing a small trained Random Forest pipeline."""
+    """Fixture providing a small trained Decision Tree pipeline."""
     np.random.seed(42)
     n = 40
     X_train = pd.DataFrame(
@@ -33,7 +33,7 @@ def trained_tree_pipeline() -> Pipeline:
         }
     )
     y_train = pd.Series([1] * 4 + [0] * 36, name="Machine failure")
-    return train_classifier(X_train, y_train, model_type="random_forest")
+    return train_classifier(X_train, y_train, model_type="decision_tree")
 
 
 @pytest.fixture

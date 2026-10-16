@@ -20,6 +20,7 @@ def test_evaluate_predictions_perfect_case():
 
     metrics = evaluate_predictions(y_true, y_pred, y_prob=y_prob, inference_time_sec=0.01)
 
+    assert metrics["accuracy"] == 1.0
     assert metrics["precision"] == 1.0
     assert metrics["recall"] == 1.0
     assert metrics["f1_score"] == 1.0
@@ -94,6 +95,7 @@ def test_build_comparison_dataframe():
     assert df_comp.iloc[1]["Model"] == "model_A"
     assert "TP" in df_comp.columns
     assert "FP" in df_comp.columns
+    assert "Accuracy" in df_comp.columns
 
 
 def test_save_evaluation_reports(tmp_path: Path):

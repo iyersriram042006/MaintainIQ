@@ -28,11 +28,11 @@
 
 Unplanned machinery downtime represents one of the largest drivers of unrecoverable operational expenditures and safety hazards across modern manufacturing facilities. Traditional maintenance paradigms—reactive (run-to-failure) and preventive (calendar-based)—consistently fail to balance maintenance overhead against catastrophic equipment destruction. This project presents **MaintainIQ**, a modular, leakage-safe machine learning system designed to monitor continuous sensor telemetry from industrial milling operations and assess equipment failure risk prior to catastrophic failure.
 
-Using the **UCI AI4I 2020 Predictive Maintenance Dataset** (10,000 records, 14 attributes), MaintainIQ benchmarks four distinct supervised classification algorithms: **Logistic Regression** (linear baseline), **Random Forest** (bagging ensemble), **XGBoost** (extreme gradient boosting), and **CatBoost** (categorical gradient boosting). The dataset exhibits severe class imbalance, with positive failure events occurring in only **3.39%** of observations. Addressing this challenge, all data preprocessing and categorical encoding transformations were embedded in a strict scikit-learn pipeline fit exclusively on training data following a reproducible 80/20 stratified train/test split (`random_state=42`), eliminating all forms of data leakage.
+Using the **UCI AI4I 2020 Predictive Maintenance Dataset** (10,000 records, 14 attributes), MaintainIQ benchmarks four distinct supervised classification algorithms permitted by the academic syllabus: **Logistic Regression** (linear baseline), **Decision Tree Classifier** (cost-sensitive classification tree), **K-Nearest Neighbors (KNN)** (distance-weighted neighbor voting), and **Support Vector Machine (SVM)** (margin-weighted support vector classification with probability calibration). The dataset exhibits severe class imbalance, with positive failure events occurring in only **3.39%** of observations. Addressing this challenge, all data preprocessing and categorical encoding transformations were embedded in a strict scikit-learn pipeline fit exclusively on training data following a reproducible 80/20 stratified train/test split (`random_state=42`), eliminating all forms of data leakage.
 
-Given the acute positive-class rarity, models were evaluated and selected using **Precision-Recall Area Under the Curve (PR-AUC / Average Precision)** alongside Recall, Precision, and F1-score, rather than deceptive scalar accuracy or unweighted ROC-AUC. Empirical evaluation on the held-out test split (2,000 samples, 68 failures) demonstrated that **XGBoost** configured with training-derived scale-positive weighting achieved superior operational performance: **PR-AUC of 0.8283**, **F1-score of 0.7376**, **Recall of 76.47%** (catching 52 of 68 test failures), **Precision of 71.23%**, and an inference latency of **1.38 µs per sample**. Random Forest achieved the highest precision (75.41%, 15 false alarms), while CatBoost attained the highest raw recall (85.29%, 58 of 68 failures detected).
+Given the acute positive-class rarity, models were evaluated and selected using **Precision-Recall Area Under the Curve (PR-AUC / Average Precision)** alongside Recall, Precision, Accuracy, and F1-score, rather than deceptive scalar accuracy alone. Empirical evaluation on the held-out test split (2,000 samples, 68 failures) demonstrated that the **Decision Tree Classifier** configured with cost-sensitive class balancing achieved superior operational performance: **PR-AUC of 0.7291**, **F1-score of 0.5644**, **Recall of 83.82%** (catching 57 of 68 test failures), **Precision of 42.54%**, **Accuracy of 95.60%**, and an inference latency of **0.94 µs per sample**. Support Vector Machine achieved the highest ROC-AUC (**0.9655**) and highest raw failure recall (**89.71%**, 61 of 68 failures detected), while K-Nearest Neighbors attained the highest precision (**83.33%**, only 4 false alarms).
 
-To resolve the industrial black-box barrier, MaintainIQ integrates dual-level Explainable AI (XAI): global permutation feature importance (measuring true degradation in PR-AUC across 10 repeats) and local instance feature attributions via TreeSHAP (`TreeExplainer`). Global evaluation established that cutting torque (mean PR-AUC drop: 0.5985), ambient air temperature (drop: 0.5062), and spindle rotational speed (drop: 0.4183) govern model predictions, aligning with the physical laws of power overload, heat dissipation breakdown, and mechanical overstrain. The complete pipeline is operationalized through an interactive, multi-tab Streamlit dashboard supporting single-machine telemetry risk scoring, batch CSV evaluation with automatic leakage exclusion, benchmark visualization, and explainability inspection. Finally, we explicitly emphasize that the AI4I 2020 dataset is derived from a phenomenological physical simulator; consequently, while our results validate pipeline safety and algorithmic capability, they do not establish uncalibrated real-world industrial reliability guarantees.
+To resolve the industrial black-box barrier, MaintainIQ integrates dual-level Explainable AI (XAI): global permutation feature importance (measuring true degradation in PR-AUC across 10 repeats) and local instance feature attributions via TreeSHAP (`TreeExplainer`). Global evaluation established that cutting torque (mean PR-AUC drop: 0.5354), ambient air temperature (drop: 0.5005), and spindle rotational speed (drop: 0.4877) govern model predictions, aligning with the physical laws of power overload, heat dissipation breakdown, and mechanical overstrain. The complete pipeline is operationalized through an interactive, multi-tab Streamlit dashboard supporting single-machine telemetry risk scoring, batch CSV evaluation with automatic leakage exclusion, benchmark visualization, explainability inspection, and syllabus-permitted experimental extensions (K-Means clustering and Linear Regression parameter estimation). Finally, we explicitly emphasize that the AI4I 2020 dataset is derived from a phenomenological physical simulator; consequently, while our results validate pipeline safety and algorithmic capability, they do not establish uncalibrated real-world industrial reliability guarantees.
 
 ---
 
@@ -49,17 +49,17 @@ In competitive industrial manufacturing, the operational integrity of rotating m
 Translating predictive maintenance from theoretical formulation into production engineering faces four foundational challenges:
 - **Acute Class Imbalance**: In well-engineered industrial machinery, failure is an extreme outlier event, typically occurring in less than 5% of operational cycles. Standard classification algorithms optimizing for zero-one loss or accuracy succumb to majority-class bias, achieving deceptively high accuracy (>95%) while failing to predict a single critical failure [3], [6].
 - **Data Leakage in Feature Pipelines**: Industrial telemetry preprocessing frequently suffers from methodological leakage: fitting scalers or imputers across entire datasets prior to splitting, or applying synthetic oversampling techniques (such as SMOTE) across evaluation sets. When evaluated under strict production conditions, these leaky pipelines collapse [4].
-- **The "Black-Box" Usability Chasm**: Modern high-performing non-linear estimators (e.g., gradient boosted decision trees) produce complex decision surfaces. Shop-floor maintenance technicians and reliability engineers routinely reject automated alert systems when the algorithm cannot provide clear, physically verifiable reasoning for an alert [1], [4].
+- **The "Black-Box" Usability Chasm**: Modern high-performing non-linear estimators produce complex decision surfaces. Shop-floor maintenance technicians and reliability engineers routinely reject automated alert systems when the algorithm cannot provide clear, physically verifiable reasoning for an alert [1], [4].
 - **Real-Time Operational Latency**: Predictive systems deployed in industrial IoT (IIoT) edge environments or plant-wide supervisory control and data acquisition (SCADA) systems require microsecond-level inference latency to score telemetry batches continuously without creating processing bottlenecks.
 
 ### 2.3 Problem Statement and Project Scope
 The objective of the **MaintainIQ** project is to design, implement, rigorously evaluate, and deploy an end-to-end, leakage-safe machine learning system that:
 1. Ingests industrial milling machine telemetry from the UCI AI4I 2020 dataset and cleans operational records without data leakage.
 2. Separates the six approved sensor feature variables from target labels and ground-truth failure mode breakdown indicators to prevent target leakage.
-3. Benchmarks four diverse classification algorithms (Logistic Regression, Random Forest, XGBoost, CatBoost) under cost-sensitive class reweighting on an 80/20 stratified split (`random_state=42`).
-4. Evaluates performance using threshold-independent **PR-AUC**, Precision, Recall, and F1-score rather than misleading overall accuracy.
+3. Benchmarks four approved classification algorithms (Logistic Regression, Decision Tree, KNN, SVM) under cost-sensitive class reweighting on an 80/20 stratified split (`random_state=42`), plus optional syllabus experimental extensions (K-Means Clustering and Linear Regression).
+4. Evaluates performance using threshold-independent **PR-AUC**, Precision, Recall, Accuracy, and F1-score rather than misleading overall accuracy alone.
 5. Implements model-agnostic permutation feature importance and local game-theoretic TreeSHAP feature attributions.
-6. Deploys the best-performing pipeline through an interactive Streamlit web dashboard supporting single-record inference, batch CSV upload scoring, model metric inspection, and explainability visualization.
+6. Deploys the champion pipeline through an interactive Streamlit web dashboard supporting single-record inference, batch CSV upload scoring, model metric inspection, explainability visualization, and experimental regime clustering.
 
 ---
 
@@ -201,9 +201,8 @@ All data transformations are encapsulated inside a scikit-learn `ColumnTransform
 +------------------------------------------------+------------------------------------------------+
                                                  |
                                                  v
-+------------------------------------------------+------------------------------------------------+
-|  Classifier Estimator (Fitted on Weighted Training Split):                                     |
-|  Logistic Regression / Random Forest / XGBoost / CatBoost                                      |
++------------------------------------------------+-----------------------------------------|  Classifier Estimator (Fitted on Weighted Training Split):                                     |
+|  Decision Tree / Support Vector Machine / K-Nearest Neighbors / Logistic Regression            |
 +-------------------------------------------------------------------------------------------------+
 ```
 
@@ -215,30 +214,31 @@ All data transformations are encapsulated inside a scikit-learn `ColumnTransform
 ## 6. Methodology and Experimental Setup
 
 ### 6.1 Class Imbalance Mitigation Strategy
-Because class imbalance is acute (28.5:1), standard maximum-likelihood optimization is overwhelmed by the negative class. MaintainIQ implements cost-sensitive loss weighting across all four models:
-1. **Logistic Regression**: Configured with `class_weight='balanced'`, which inversely weights samples by class frequency:
+Because class imbalance is acute (~28.5:1), standard maximum-likelihood optimization is overwhelmed by the negative class. MaintainIQ implements principled, syllabus-permitted imbalance mitigation across all four classifiers:
+1. **Decision Tree Classifier**: Configured with `class_weight='balanced'`, which scales impurity split criteria inversely proportional to training class frequencies:
    $$w_c = \frac{N}{2 \cdot N_c}$$
-2. **Random Forest**: Configured with `class_weight='balanced'`, applying balanced bootstrap sampling per tree so each sub-tree is fit on a balanced slice of the training observations.
-3. **XGBoost**: Configured with `scale_pos_weight = n_neg / n_pos`, computed strictly on the training partition:
-   $$\text{scale\_pos\_weight} = \frac{7729}{271} \approx 28.5203$$
-   This scales the gradient of the loss function for positive failure instances by 28.52×, penalizing false negatives proportionately to the class imbalance ratio.
-4. **CatBoost**: Configured with `auto_class_weights='Balanced'`, internally adjusting negative and positive weights inversely to class frequencies.
+2. **Support Vector Machine (SVM)**: Configured with `class_weight='balanced'`, `probability=True`, and an RBF kernel. Margin-slack penalties ($C$) for misclassified rare failure samples are scaled up by $w_1 \approx 14.76$, with Platt scaling applied for probabilistic risk calibration.
+3. **K-Nearest Neighbors (KNN)**: Configured with `weights='distance'` and $k=7$ neighbors. Rather than unweighted majority voting (which is dominated by healthy records), neighbors are weighted by the reciprocal of Euclidean distance ($w_i = 1/d(x, x_i)$), magnifying the influence of nearby failure points.
+4. **Logistic Regression**: Configured with `class_weight='balanced'`, applying inverse class frequency reweighting to log-loss log-odds calculations.
 
 ### 6.2 Model Architectures & Hyperparameters
 All models use `random_state=42` where stochasticity is involved:
-- **Logistic Regression**: `solver='lbfgs'`, `C=1.0`, `max_iter=1000`.
-- **Random Forest**: `n_estimators=100`, `max_depth=12`, `min_samples_split=5`, `n_jobs=-1`.
-- **XGBoost**: `n_estimators=100`, `max_depth=5`, `learning_rate=0.1`, `subsample=0.8`, `colsample_bytree=0.8`, `eval_metric='logloss'`.
-- **CatBoost**: `iterations=150`, `depth=6`, `learning_rate=0.1`, `verbose=False`.
+- **Decision Tree**: `criterion='gini'`, `class_weight='balanced'`, `max_depth=8`, `min_samples_leaf=4`, `random_state=42`.
+- **Support Vector Machine (SVM)**: `kernel='rbf'`, `class_weight='balanced'`, `probability=True`, `C=1.0`, `random_state=42`.
+- **K-Nearest Neighbors (KNN)**: `n_neighbors=7`, `weights='distance'`, `metric='minkowski'`, `p=2`.
+- **Logistic Regression**: `solver='lbfgs'`, `class_weight='balanced'`, `C=1.0`, `max_iter=1000`, `random_state=42`.
 
 ### 6.3 Evaluation Metrics Formulation
-Given severe class imbalance, accuracy is discarded. Models are evaluated across five critical metrics:
+Given severe class imbalance, accuracy is supplemented by threshold-independent and positive-class-focused metrics:
 - **Precision ($P$)**:
   $$P = \frac{\text{TP}}{\text{TP} + \text{FP}}$$
   Measures the trustworthiness of failure alarms. In an industrial plant, low precision leads to costly unnecessary shutdowns and technician alert fatigue.
 - **Recall ($R$) / Sensitivity**:
   $$R = \frac{\text{TP}}{\text{TP} + \text{FN}}$$
   Measures the percentage of actual physical failures caught. Low recall causes catastrophic unmitigated machinery destruction.
+- **Accuracy**:
+  $$\text{Accuracy} = \frac{\text{TP} + \text{TN}}{\text{TP} + \text{TN} + \text{FP} + \text{FN}}$$
+  Overall fraction of correct classifications across all operational cycles.
 - **F1-Score**:
   $$F_1 = 2 \cdot \frac{P \cdot R}{P + R}$$
   Harmonic mean balancing precision and recall.
@@ -257,12 +257,12 @@ Table 1 documents the empirical test results obtained on the quarantined, held-o
 
 **Table 1: Comprehensive Model Comparison Benchmark on Held-Out Test Split (2,000 Samples, 68 Failures)**
 
-| Model | PR-AUC | F1-Score | Precision | Recall | ROC-AUC | TP | FP | FN | TN | Latency (µs/sample) | Imbalance Strategy |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
-| **XGBoost** (Selected) | **0.8283** | **0.7376** | 0.7123 | 0.7647 | 0.9651 | 52 | 21 | 16 | 1911 | 1.38 µs | `scale_pos_weight = 28.52` |
-| **Random Forest** | 0.7368 | 0.7132 | **0.7541** | 0.6765 | 0.9574 | 46 | 15 | 22 | 1917 | 7.83 µs | `class_weight='balanced'` |
-| **CatBoost** | 0.7068 | 0.5133 | 0.3671 | **0.8529** | **0.9702** | 58 | 100 | 10 | 1832 | 1.38 µs | `auto_class_weights='Balanced'` |
-| **Logistic Regression** | 0.3818 | 0.2419 | 0.1418 | 0.8235 | 0.9070 | 56 | 339 | 12 | 1593 | 1.07 µs | `class_weight='balanced'` |
+| Model | PR-AUC | F1-Score | Precision | Recall | Accuracy | ROC-AUC | TP | FP | FN | TN | Latency (µs/sample) | Training Time (s) | Imbalance Strategy |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| **Decision Tree** (Selected Champion) | **0.7291** | **0.5644** | 0.4254 | 0.8382 | 0.9560 | 0.9097 | 57 | 77 | 11 | 1855 | 0.94 µs | 0.018 s | `class_weight='balanced'` |
+| **Support Vector Machine (SVM)** | 0.6119 | 0.4251 | 0.2785 | **0.8971** | 0.9175 | **0.9655** | 61 | 158 | 7 | 1774 | 39.87 µs | 1.100 s | `class_weight='balanced', probability=True` |
+| **K-Nearest Neighbors (KNN)** | 0.5516 | 0.4348 | **0.8333** | 0.2941 | **0.9740** | 0.8566 | 20 | 4 | 48 | 1928 | 6.46 µs | 0.008 s | `distance-weighted neighbors (k=7)` |
+| **Logistic Regression** | 0.3818 | 0.2419 | 0.1418 | 0.8235 | 0.8245 | 0.9070 | 56 | 339 | 12 | 1593 | 1.09 µs | 0.036 s | `class_weight='balanced'` |
 
 *(Note: Existing generated table artifact is saved at `reports/tables/model_comparison.csv` and detailed metrics at `reports/tables/model_metrics.json`)*.
 
@@ -270,31 +270,30 @@ Table 1 documents the empirical test results obtained on the quarantined, held-o
 +-------------------------------------------------------------------------------------------------+
 |                               MODEL PERFORMANCE COMPARISON (PR-AUC)                             |
 +-------------------------------------------------------------------------------------------------+
-| XGBoost             [##################################################] 0.8283 (Best Overall) |
-| Random Forest       [##########################################        ] 0.7368 (Best Precision)|
-| CatBoost            [########################################          ] 0.7068 (Best Recall)   |
-| Logistic Regression [######################                            ] 0.3818 (Linear Baseline)|
+| Decision Tree       [##################################################] 0.7291 (Best Overall) |
+| SVM                 [##########################################        ] 0.6119 (Best Recall/ROC)|
+| KNN                 [#####################################             ] 0.5516 (Best Precision)|
+| Logistic Regression [##########################                        ] 0.3818 (Linear Baseline)|
 +-------------------------------------------------------------------------------------------------+
 ```
 
 ### 7.2 Analysis of Model Behaviors & Trade-offs
-1. **XGBoost (Selected Champion)**:
-   - Achieved the highest **PR-AUC (0.8283)** and **F1-score (0.7376)**.
-   - Successfully identified **52 of 68 machine failures** (Recall = 76.47%) while generating only **21 false positives** across 1,932 healthy cycles (Precision = 71.23%).
-   - Demonstrated exceptional computational efficiency: **1.38 µs per sample** (2.76 ms for all 2,000 records), making it ideal for edge deployment.
-2. **Random Forest (High-Precision Profile)**:
-   - Attained the highest **Precision (75.41%)** and lowest false-alarm count (**15 false positives**).
-   - Caught **46 of 68 failures** (Recall = 67.65%), missing 22 failures.
-   - Higher computational latency (**7.83 µs/sample**, ~5.7× slower than XGBoost) due to evaluating 100 deep, unpruned bagging trees.
-3. **CatBoost (Maximum Recall Profile)**:
-   - Maximized **Recall (85.29%)**, detecting **58 of 68 failures** and allowing only 10 failures to escape undetected.
-   - Suffered from lower **Precision (36.71%)**, generating **100 false positives** (nearly 5× more than XGBoost). In operational settings, this would trigger 100 unnecessary equipment inspections.
+1. **Decision Tree Classifier (Selected Champion)**:
+   - Achieved the highest **PR-AUC (0.7291)** and highest **F1-score (0.5644)** among all approved syllabus models.
+   - Successfully identified **57 of 68 machine failures** (Recall = 83.82%) while keeping false positives to 77 across 1,932 healthy cycles (Accuracy = 95.60%).
+   - Demonstrated microsecond computational speed: **0.94 µs per sample** (1.89 ms total for 2,000 records) and near-instant training time (**0.018 s**).
+2. **Support Vector Machine (Maximum Recall & ROC-AUC Profile)**:
+   - Attained the highest **ROC-AUC (0.9655)** and highest raw failure detection rate (**Recall = 89.71%**, catching 61 of 68 test failures, with only 7 escaping).
+   - Suffered from higher false positives (**158 FP**, Precision = 27.85%) and higher evaluation latency (**39.87 µs/sample**), characteristic of evaluating hundreds of non-linear RBF support vectors with Platt probability scaling.
+3. **K-Nearest Neighbors (High-Precision Profile)**:
+   - Maximized **Precision (83.33%)** and lowest false-alarm count (**only 4 false positives**), leading to the highest overall accuracy (**97.40%**).
+   - However, missed 48 of 68 failures (**Recall = 29.41%**), making it ill-suited as a standalone fail-safe alarm system without threshold adjustment.
 4. **Logistic Regression (Linear Baseline Inadequacy)**:
-   - High Recall (82.35%, 56 failures detected), but disastrous **Precision (14.18%)** and **339 false alarms** (over 17% of all healthy runs misclassified).
-   - Demonstrates that linear decision boundaries cannot capture multiplicative degradation thresholds (e.g., Torque × Rotational Speed or Torque × Tool Wear). Non-linear tree ensembles are mathematically required for physical telemetry modeling.
+   - High Recall (82.35%, 56 failures detected), but disastrous **Precision (14.18%)** and **339 false alarms** (over 17% of healthy cycles flagged incorrectly).
+   - Demonstrates that linear decision surfaces cannot model physical boundary crossings (e.g., Torque $\times$ Rotational Speed power envelope). Non-linear models are fundamentally required.
 
 ### 7.3 Model Selection Decision
-MaintainIQ selects **XGBoost** as its champion prototype model (`models/model.joblib`) for dashboard deployment. By maximizing PR-AUC (0.8283) and F1-score (0.7376), XGBoost strikes the optimal industrial compromise: detecting over three-quarters of all machine failures while keeping false alarms to a manageable ~1% false positive rate across normal operational runs.
+MaintainIQ selects the **Decision Tree Classifier** as its champion prototype model (`models/model.joblib`) for dashboard deployment. By maximizing PR-AUC (0.7291) and F1-score (0.5644), Decision Tree achieves the optimal engineering compromise: detecting nearly 84% of all machine failures while sustaining sub-microsecond latency (0.94 µs/sample) and providing native tree explainability.
 
 ---
 
@@ -312,30 +311,31 @@ Permutation feature importance measures the decrease in model score when values 
 
 | Rank | Transformed Feature | Importance (PR-AUC Drop) | Std Dev (±) | Physical Interpretation |
 |:---:|---|:---:|:---:|---|
-| **1** | `Torque [Nm]` | **0.5985** | ±0.0180 | Mechanical resistance torque; dominant driver of overstrain and motor power failure |
-| **2** | `Air temperature [K]` | **0.5062** | ±0.0536 | Ambient environmental heat; dictates heat dissipation gradient $\Delta T$ |
-| **3** | `Rotational speed [rpm]` | **0.4183** | ±0.0281 | Spindle velocity; governs cutting speed and motor power ($P = \tau \cdot \omega$) |
-| **4** | `Tool wear [min]` | **0.3242** | ±0.0397 | Cumulative cutter contact duration; triggers tool wear failure and accelerates strain |
-| **5** | `Process temperature [K]` | **0.2660** | ±0.0331 | Cutting friction temperature; determines thermal dissipation failure threshold |
-| **6** | `Type_L` | **0.0273** | ±0.0102 | Low-quality product variant indicator (mass production tolerance) |
-| **7** | `Type_M` | **0.0046** | ±0.0032 | Medium-quality product variant indicator |
-| **8** | `Type_H` | **0.0028** | ±0.0035 | High-quality product variant indicator |
+| **1** | `Torque [Nm]` | **0.5354** | ±0.0198 | Mechanical resistance torque; dominant driver of overstrain and motor power failure |
+| **2** | `Air temperature [K]` | **0.5005** | ±0.0373 | Ambient environmental heat; dictates heat dissipation gradient $\Delta T$ |
+| **3** | `Rotational speed [rpm]` | **0.4877** | ±0.0149 | Spindle velocity; governs cutting speed and motor power ($P = \tau \cdot \omega$) |
+| **4** | `Tool wear [min]` | **0.2687** | ±0.0214 | Cumulative cutter contact duration; triggers tool wear failure and accelerates strain |
+| **5** | `Process temperature [K]` | **0.2561** | ±0.0184 | Cutting friction temperature; determines thermal dissipation failure threshold |
+| **6** | `Type_L` | **0.0559** | ±0.0333 | Low-quality product variant indicator (mass production tolerance) |
+| **7** | `Type_M` | **0.0000** | ±0.0000 | Medium-quality product variant indicator |
+| **8** | `Type_H` | **0.0000** | ±0.0000 | High-quality product variant indicator |
 
-*(Note: Existing generated table artifact is saved at `reports/tables/feature_importance.csv` and publication figure at `reports/figures/feature_importance.png`)*.
+*(Note: Generated table artifact is saved at `reports/tables/feature_importance.csv` and publication figure at `reports/figures/feature_importance.png`)*.
 
 ```
 +-------------------------------------------------------------------------------------------------+
 |                         RANKED PERMUTATION IMPORTANCE (PR-AUC DROP)                             |
 +-------------------------------------------------------------------------------------------------+
-| Torque [Nm]             [##################################################] 0.5985             |
-| Air temperature [K]     [##########################################        ] 0.5062             |
-| Rotational speed [rpm]  [###################################               ] 0.4183             |
-| Tool wear [min]         [###########################                       ] 0.3242             |
-| Process temperature [K] [######################                            ] 0.2660             |
-| Type_L                  [##                                                ] 0.0273             |
-| Type_M                  [#                                                 ] 0.0046             |
-| Type_H                  [#                                                 ] 0.0028             |
+| Torque [Nm]             [##################################################] 0.5354             |
+| Air temperature [K]     [###############################################   ] 0.5005             |
+| Rotational speed [rpm]  [#############################################     ] 0.4877             |
+| Tool wear [min]         [#########################                         ] 0.2687             |
+| Process temperature [K] [########################                          ] 0.2561             |
+| Type_L                  [#####                                             ] 0.0559             |
+| Type_M                  [                                                  ] 0.0000             |
+| Type_H                  [                                                  ] 0.0000             |
 +-------------------------------------------------------------------------------------------------+
+```-------------------------+
 ```
 
 ### 8.3 Physical Domain Interpretations
@@ -367,14 +367,14 @@ MaintainIQ is deployed as an interactive, multi-tab Streamlit dashboard (`app.py
 +-------------------------------------------------------------------------------------------------+
 |                                 MAINTAINIQ STREAMLIT APP NAVIGATION                             |
 +-------------------+-------------------+-------------------+-------------------+-----------------+
-| Tab 1: System     | Tab 2: Single     | Tab 3: CSV Batch  | Tab 4: Model      | Tab 5:          |
-| Overview          | Risk Scoring      | Evaluation        | Benchmarks        | Explainability  |
-+-------------------+-------------------+-------------------+-------------------+-----------------+
+| Tab 1: System     | Tab 2: Single     | Tab 3: CSV Batch  | Tab 4: Model      | Tab 5: Explain-  | Tab 6: Syllabus  |
+| Overview          | Risk Scoring      | Evaluation        | Benchmarks        | ability & SHAP   | Extensions (Exp) |
++-------------------+-------------------+-------------------+-------------------+------------------+------------------+
 ```
 
 ### 9.2 Application Tabs & Implemented Features
 1. **Tab 1: System Overview**:
-   - Displays real-time operational status, total records (10,000), dataset failure incidence (3.39%), best model identifier (XGBoost), and primary evaluation strategy (PR-AUC on stratified 80/20 split).
+   - Displays real-time operational status, total records (10,000), dataset failure incidence (3.39%), best model identifier (Decision Tree), and primary evaluation strategy (PR-AUC on stratified 80/20 split).
    - Provides descriptions of the five industrial failure modes (`TWF`, `HDF`, `PWF`, `OSF`, `RNF`).
    - Features a prominent **Synthetic Dataset Disclosure & Ethics Banner**, disclosing the simulator origin and academic scope.
    - Includes an expandable preview of raw dataset telemetry.
@@ -398,7 +398,7 @@ MaintainIQ is deployed as an interactive, multi-tab Streamlit dashboard (`app.py
    - Previews annotated telemetry and provides an export button to download the scored CSV with appended `predicted_failure`, `failure_probability`, and `risk_level` columns.
 4. **Tab 4: Model Benchmarks & Classifier Comparison**:
    - Displays the full four-model comparison table loaded dynamically from `reports/tables/model_comparison.csv` with top metrics highlighted.
-   - Generates an interactive grouped bar chart across PR-AUC, F1-Score, Recall, Precision, and ROC-AUC.
+   - Generates an interactive grouped bar chart across PR-AUC, F1-Score, Recall, Precision, Accuracy, and ROC-AUC.
    - Displays confusion matrix breakdown cards for each classifier (TP, FN, FP, TN, and per-sample latency).
    - Includes an educational expander explaining class imbalance mitigation strategies.
 5. **Tab 5: Model Interpretability & Explainability**:
@@ -406,15 +406,18 @@ MaintainIQ is deployed as an interactive, multi-tab Streamlit dashboard (`app.py
    - Renders the ranked feature importance table as a semantic HTML table (`st.table`) with explicit columns (`Rank`, `Feature`, `PR-AUC Drop`, `Std Dev`), avoiding canvas rendering artifacts.
    - Provides engineering domain insights mapping feature reliance to physical machine components.
    - Concludes with the formal scientific causation disclaimer.
+6. **Tab 6: Optional Syllabus Experimental Extensions**:
+   - **K-Means Operating Regime Clustering**: Unsupervised grouping of machines into operational regimes (e.g., Heavy Load, Nominal, High Speed) with cluster profiling.
+   - **Linear Regression Physical Parameter Modeling**: Continuous torque estimation ($R^2$, MAE, RMSE) demonstrating regression capability without target leakage into binary failure classification.
 
 ---
 
 ## 10. Discussion, Limitations, and Future Directions
 
 ### 10.1 Discussion of Findings
-The empirical results demonstrate that predicting rare failure events from multi-sensor machine telemetry is highly viable when disciplined, leakage-free pipelines and appropriate cost-sensitive ensemble architectures are employed. The superiority of gradient boosting (XGBoost PR-AUC of 0.8283 vs. Logistic Regression PR-AUC of 0.3818) underscores the inherently non-linear nature of machine degradation, where failure thresholds represent complex interactions between torque, thermal gradients, and mechanical contact time.
+The empirical results demonstrate that predicting rare failure events from multi-sensor machine telemetry is highly viable when disciplined, leakage-free pipelines and cost-sensitive classification architectures are employed. The superiority of the Decision Tree Classifier (PR-AUC of 0.7291 vs. Logistic Regression PR-AUC of 0.3818) underscores the inherently non-linear nature of machine degradation, where failure thresholds represent complex interactions between torque, thermal gradients, and mechanical contact time.
 
-Furthermore, our evaluation confirms the theoretical findings of Saito & Rehmsmeier [8]: high ROC-AUC scores (0.9070 for Logistic Regression, 0.9651 for XGBoost) create a false sense of security by obscuring severe disparities in precision and false alarm rates. PR-AUC proved indispensable as the primary evaluation criterion.
+Furthermore, our evaluation confirms the theoretical findings of Saito & Rehmsmeier [8]: high ROC-AUC scores (0.9070 for Logistic Regression, 0.9655 for SVM) create a false sense of security by obscuring severe disparities in precision and false alarm rates. PR-AUC proved indispensable as the primary evaluation criterion.
 
 ### 10.2 Project Limitations
 1. **Simulation Benchmark**: The UCI AI4I 2020 dataset was generated by a physical simulation model [1]. While mathematically rigorous, it lacks real-world shop-floor phenomena such as vibration harmonics, sensor drift, electrical noise, intermittent communication dropouts, and maintenance log entry errors.
@@ -424,15 +427,15 @@ Furthermore, our evaluation confirms the theoretical findings of Saito & Rehmsme
 ### 10.3 Future Research Directions
 - **Multivariate Time-Series Modeling**: Integrating continuous vibration accelerometer telemetry sampled at kilohertz frequencies to capture bearing acoustic emissions prior to thermal spikes.
 - **Multimodal Failure Mode Multi-Labeling**: Expanding the architecture to simultaneously predict both the failure likelihood and the specific component mode (`TWF`, `HDF`, `PWF`, `OSF`) using multi-label cost-sensitive learning.
-- **Edge Microcontroller Deployment**: Quantizing the trained XGBoost model using ONNX Runtime or Treelite for sub-microsecond execution directly on industrial microcontrollers (e.g., STM32 or Raspberry Pi edge gateways).
+- **Edge Microcontroller Deployment**: Quantizing the trained Decision Tree model using ONNX Runtime or C-code transpilation (e.g., `m2cgen`) for sub-microsecond execution directly on industrial microcontrollers (e.g., STM32 or Raspberry Pi edge gateways).
 
 ---
 
 ## 11. Conclusion
 
-This capstone project designed, implemented, evaluated, and deployed **MaintainIQ**, an end-to-end machine learning system for industrial predictive maintenance and explainable failure risk assessment. Benchmarking across the UCI AI4I 2020 dataset demonstrated that tree-based gradient boosting (XGBoost) configured with training-derived class-imbalance weighting achieved superior operational performance (**PR-AUC of 0.8283**, **F1-score of 0.7376**, **Recall of 76.47%**, and **Precision of 71.23%**), vastly outperforming linear baselines while maintaining an inference latency of **1.38 µs per sample**.
+This capstone project designed, implemented, evaluated, and deployed **MaintainIQ**, an end-to-end machine learning system for industrial predictive maintenance and explainable failure risk assessment. Benchmarking across the UCI AI4I 2020 dataset demonstrated that the cost-sensitive **Decision Tree Classifier** achieved superior operational performance (**PR-AUC of 0.7291**, **F1-score of 0.5644**, **Recall of 83.82%**, **Precision of 42.54%**, and **Accuracy of 95.60%**), vastly outperforming linear baselines while maintaining an inference latency of **0.94 µs per sample**.
 
-Through rigorous methodological enforcement—strictly separating feature inputs from target leakage columns, quarantining the 80/20 stratified test split, and embedding all preprocessing within scikit-learn pipelines—MaintainIQ eliminates data leakage. By integrating global permutation importance and local TreeSHAP explainability, the system translates mathematical predictions into actionable engineering insights, establishing cutting torque, thermal gradients, and rotational velocity as the primary failure indicators. Packaged into a responsive Streamlit dashboard, MaintainIQ provides a comprehensive prototype illustrating how applied machine learning can advance modern predictive maintenance in smart manufacturing.
+Through rigorous methodological enforcement—strictly separating feature inputs from target leakage columns, quarantining the 80/20 stratified test split, and embedding all preprocessing within scikit-learn pipelines—MaintainIQ eliminates data leakage. By integrating global permutation importance and local TreeSHAP explainability, the system translates mathematical predictions into actionable engineering insights, establishing cutting torque, thermal gradients, and rotational velocity as the primary failure indicators. Packaged into a responsive Streamlit dashboard with optional syllabus-permitted experimental extensions (K-Means and Linear Regression), MaintainIQ provides a comprehensive prototype illustrating how applied machine learning can advance modern predictive maintenance in smart manufacturing.
 
 ---
 
@@ -477,7 +480,7 @@ python scripts/download_data.py
 ```
 
 ### 3. Pipeline Training & Model Benchmarking
-Performs stratified 80/20 splitting, fits the leak-free preprocessing pipeline, trains all four models, generates `reports/tables/model_comparison.csv` and `reports/tables/model_metrics.json`, and saves the champion XGBoost pipeline to `models/model.joblib`:
+Performs stratified 80/20 splitting, fits the leak-free preprocessing pipeline, trains all four models, generates `reports/tables/model_comparison.csv` and `reports/tables/model_metrics.json`, and saves the champion Decision Tree pipeline to `models/model.joblib`:
 ```bash
 python -m src.train
 ```
@@ -489,7 +492,7 @@ python -m src.explain
 ```
 
 ### 5. Automated Test Suite Execution
-Executes all 66 unit and integration test assertions across the entire codebase:
+Executes all 72 unit and integration test assertions across the entire codebase:
 ```bash
 python -m pytest tests/ -v
 ```

@@ -92,7 +92,7 @@ def test_train_model_convenience_alias():
 def test_save_and_load_model_artifact(tmp_path: Path):
     """Verify model pipeline serialization and deserialization."""
     X_train, y_train = create_mock_train_data(25)
-    pipeline = train_classifier(X_train, y_train, model_type="random_forest")
+    pipeline = train_classifier(X_train, y_train, model_type="decision_tree")
 
     artifact_file = tmp_path / "test_model.joblib"
     saved_path = save_model(pipeline, artifact_file)
@@ -161,7 +161,7 @@ def create_mock_dataset_csv(filepath: Path, num_rows: int = 30) -> Path:
 def test_ensure_model_pipeline_loads_existing_artifact(tmp_path: Path):
     """Verify that existing model artifact is loaded directly without data access."""
     X_train, y_train = create_mock_train_data(20)
-    pipeline = train_classifier(X_train, y_train, model_type="random_forest")
+    pipeline = train_classifier(X_train, y_train, model_type="decision_tree")
     model_file = tmp_path / "existing_model.joblib"
     save_model(pipeline, model_file)
 
@@ -183,7 +183,7 @@ def test_ensure_model_pipeline_provisions_when_model_missing(tmp_path: Path):
     )
     assert model_file.exists()
     assert isinstance(pipeline, Pipeline)
-    assert type(pipeline.named_steps["classifier"]).__name__ == "XGBClassifier"
+    assert type(pipeline.named_steps["classifier"]).__name__ == "DecisionTreeClassifier"
 
     # Verify predictions work on sample record
     test_record = pd.DataFrame(
@@ -213,12 +213,12 @@ def test_ensure_model_pipeline_missing_data_no_download_raises_error(tmp_path: P
         )
 
 
-def test_train_champion_model_only_trains_xgboost(tmp_path: Path):
-    """Verify train_champion_model trains exclusively the XGBoost champion pipeline."""
+def test_train_champion_model_only_trains_decision_tree(tmp_path: Path):
+    """Verify train_champion_model trains exclusively the Decision Tree champion pipeline."""
     data_file = create_mock_dataset_csv(tmp_path / "raw.csv", num_rows=25)
     save_file = tmp_path / "champion.joblib"
 
     pipeline = train_champion_model(data_path=data_file, model_save_path=save_file)
     assert save_file.exists()
     assert isinstance(pipeline, Pipeline)
-    assert type(pipeline.named_steps["classifier"]).__name__ == "XGBClassifier"
+    assert type(pipeline.named_steps["classifier"]).__name__ == "DecisionTreeClassifier"

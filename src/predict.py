@@ -1,11 +1,11 @@
 """Inference and failure risk prediction utilities for MaintainIQ."""
 
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 
-from config.settings import EXCLUDED_FEATURES, FEATURE_COLUMNS, MODEL_PATH
+from config.settings import EXCLUDED_FEATURES, FEATURE_COLUMNS, MODEL_PATH, TARGET_COLUMN
 from src.train import ensure_model_pipeline, load_model
 
 
@@ -147,4 +147,80 @@ def predict_batch_dataframe(model: Any, df: pd.DataFrame) -> pd.DataFrame:
     result_df["risk_percentage"] = [p["risk_percentage"] for p in predictions]
     result_df["risk_level"] = [p["risk_level"] for p in predictions]
     return result_df
+
+
+def extract_actual_failure_column(df: pd.DataFrame) -> Optional[str]:
+    """Identify if a ground-truth failure label column exists in the DataFrame.
+
+    Searches for TARGET_COLUMN or common label aliases and verifies binary values.
+
+    Args:
+        df: Input DataFrame to inspect.
+
+    Returns:
+        Name of the matching failure column, or None if not present.
+    """
+    if df is None or not isinstance(df, pd.DataFrame):
+        return None
+    for col in df.columns:
+        if col.strip().lower() in [TARGET_COLUMN.lower(), "failure", "actual_failure", "target"]:
+            vals = set(df[col].dropna().unique())
+            if vals.issubset({0, 1, 0.0, 1.0, False, True, "0", "1"}):
+                return col
+    return None
+
+
+def evaluate_batch_predictions(
+    annotated_df: pd.DataFrame,
+    actual_col: str,
+) -> Dict[str, Any]:
+    """Compute performance metrics when ground-truth failure labels are present in batch data.
+
+    Explicitly separates actual failure outcomes from model predictions.
+
+    Args:
+        annotated_df: DataFrame with batch inference output columns.
+        actual_col: Name of the ground-truth binary failure column.
+
+    Returns:
+        Dictionary of actual vs predicted counts, confusion matrix values, and performance metrics.
+    """
+    if actual_col not in annotated_df.columns:
+        raise ValueError(f"Column '{actual_col}' not found in annotated DataFrame.")
+
+    y_true = annotated_df[actual_col].astype(int).values
+    y_pred = annotated_df["predicted_failure"].astype(int).values
+
+    tp = int(((y_true == 1) & (y_pred == 1)).sum())
+    fp = int(((y_true == 0) & (y_pred == 1)).sum())
+    fn = int(((y_true == 1) & (y_pred == 0)).sum())
+    tn = int(((y_true == 0) & (y_pred == 0)).sum())
+
+    total = len(y_true)
+    actual_failures = int((y_true == 1).sum())
+    pred_failures = int((y_pred == 1).sum())
+
+    precision = float(tp / (tp + fp)) if (tp + fp) > 0 else 0.0
+    recall = float(tp / (tp + fn)) if (tp + fn) > 0 else 0.0
+    f1 = float(2 * precision * recall / (precision + recall)) if (precision + recall) > 0 else 0.0
+    accuracy = float((tp + tn) / total) if total > 0 else 0.0
+
+    return {
+        "actual_col": actual_col,
+        "total_samples": total,
+        "actual_failures": actual_failures,
+        "actual_normal": total - actual_failures,
+        "actual_failure_rate": (actual_failures / total) * 100.0 if total > 0 else 0.0,
+        "predicted_failures": pred_failures,
+        "predicted_normal": total - pred_failures,
+        "predicted_failure_rate": (pred_failures / total) * 100.0 if total > 0 else 0.0,
+        "tp": tp,
+        "fp": fp,
+        "fn": fn,
+        "tn": tn,
+        "precision": precision,
+        "recall": recall,
+        "f1": f1,
+        "accuracy": accuracy,
+    }
 

@@ -11,6 +11,7 @@ import json
 import numpy as np
 import pandas as pd
 from sklearn.metrics import (
+    accuracy_score,
     average_precision_score,
     confusion_matrix,
     f1_score,
@@ -31,8 +32,8 @@ def evaluate_predictions(
 ) -> Dict[str, Any]:
     """Compute performance metrics for predictive maintenance binary classification.
 
-    Focuses on imbalance-robust metrics (PR-AUC, Recall, Precision, F1, ROC-AUC)
-    rather than misleading raw accuracy.
+    Evaluates both imbalanced-data metrics (PR-AUC, Recall, Precision, F1, ROC-AUC)
+    and overall accuracy.
 
     Args:
         y_true: Ground truth binary failure labels (0: Normal, 1: Failure).
@@ -42,7 +43,7 @@ def evaluate_predictions(
         n_samples: Number of samples evaluated (defaults to len(y_true)).
 
     Returns:
-        Dictionary containing precision, recall, f1_score, pr_auc, roc_auc,
+        Dictionary containing accuracy, precision, recall, f1_score, pr_auc, roc_auc,
         confusion matrix breakdowns, and inference latency.
 
     Raises:
@@ -68,11 +69,13 @@ def evaluate_predictions(
     cm = confusion_matrix(y_true_arr, y_pred_arr, labels=[0, 1])
     tn, fp, fn, tp = [int(v) for v in cm.ravel()]
 
+    acc = float(accuracy_score(y_true_arr, y_pred_arr))
     prec = float(precision_score(y_true_arr, y_pred_arr, zero_division=0))
     rec = float(recall_score(y_true_arr, y_pred_arr, zero_division=0))
     f1 = float(f1_score(y_true_arr, y_pred_arr, zero_division=0))
 
     metrics: Dict[str, Any] = {
+        "accuracy": acc,
         "precision": prec,
         "recall": rec,
         "f1_score": f1,
@@ -171,12 +174,14 @@ def build_comparison_dataframe(
             "F1-Score": metrics.get("f1_score"),
             "Precision": metrics.get("precision"),
             "Recall": metrics.get("recall"),
+            "Accuracy": metrics.get("accuracy"),
             "ROC-AUC": metrics.get("roc_auc"),
             "TP": cm.get("true_positives"),
             "FP": cm.get("false_positives"),
             "FN": cm.get("false_negatives"),
             "TN": cm.get("true_negatives"),
             "Latency (ms/sample)": metrics.get("inference_latency_per_sample_ms"),
+            "Training Time (s)": metrics.get("training_time_sec"),
             "Imbalance Strategy": metrics.get("imbalance_strategy", "N/A"),
         }
         rows.append(row)

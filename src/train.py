@@ -1,22 +1,23 @@
 """Model training, hyperparameter configuration, and artifact management for MaintainIQ.
 
-Trains and benchmarks:
+Trains and benchmarks the four approved classification algorithms:
 - Logistic Regression (class_weight='balanced')
-- Random Forest (class_weight='balanced')
-- XGBoost (scale_pos_weight derived from training set)
-- CatBoost (auto_class_weights='Balanced')
+- Decision Tree Classifier (class_weight='balanced', max_depth=8, min_samples_leaf=4)
+- K-Nearest Neighbors Classifier (weights='distance', n_neighbors=7)
+- Support Vector Machine (SVC, probability=True, class_weight='balanced')
 """
 
 from pathlib import Path
+import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 import joblib
 import numpy as np
 import pandas as pd
-from catboost import CatBoostClassifier
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.pipeline import Pipeline
-from xgboost import XGBClassifier
+from sklearn.svm import SVC
+from sklearn.tree import DecisionTreeClassifier
 
 from config.settings import (
     MODEL_PATH,
@@ -42,30 +43,31 @@ from src.preprocessing import (
 # Documentation of imbalance mitigation strategies per model
 IMBALANCE_STRATEGIES: Dict[str, str] = {
     "logistic_regression": "class_weight='balanced' (inverse class frequency reweighting)",
-    "random_forest": "class_weight='balanced' (subsample-balanced bootstrap trees)",
-    "xgboost": "scale_pos_weight=n_neg/n_pos (computed strictly on training split)",
-    "catboost": "auto_class_weights='Balanced' (CatBoost internal inverse frequency balancing)",
+    "decision_tree": "class_weight='balanced' (cost-sensitive tree split reweighting)",
+    "knn": "distance-weighted neighbors (weights='distance', k=7)",
+    "svm": "class_weight='balanced', probability=True (margin-weighted RBF support vectors)",
 }
 
 SUPPORTED_MODELS: List[str] = [
     "logistic_regression",
-    "random_forest",
-    "xgboost",
-    "catboost",
+    "decision_tree",
+    "knn",
+    "svm",
 ]
 
 
 def build_classifier_estimator(
     model_type: str,
-    y_train: pd.Series,
+    y_train: Optional[pd.Series] = None,
     random_state: int = RANDOM_STATE,
     hyperparameters: Optional[Dict[str, Any]] = None,
 ) -> Any:
     """Instantiate a classifier with configured imbalance mitigation parameters.
 
     Args:
-        model_type: Identifier string for the algorithm.
-        y_train: Training labels used to compute class ratio for XGBoost.
+        model_type: Identifier string for the algorithm ('logistic_regression',
+            'decision_tree', 'knn', 'svm').
+        y_train: Optional training labels (retained for backward interface compatibility).
         random_state: Seed for reproducibility.
         hyperparameters: Optional overrides for default classifier parameters.
 
@@ -84,11 +86,6 @@ def build_classifier_estimator(
 
     params = hyperparameters.copy() if hyperparameters else {}
 
-    # Calculate negative/positive ratio strictly on training labels for XGBoost
-    n_pos = int(y_train.sum())
-    n_neg = int(len(y_train) - n_pos)
-    scale_pos_weight = float(n_neg / max(n_pos, 1))
-
     if model_key == "logistic_regression":
         default_params: Dict[str, Any] = {
             "class_weight": "balanced",
@@ -99,38 +96,33 @@ def build_classifier_estimator(
         default_params.update(params)
         return LogisticRegression(**default_params)
 
-    elif model_key == "random_forest":
+    elif model_key == "decision_tree":
         default_params = {
             "class_weight": "balanced",
+            "max_depth": 8,
+            "min_samples_leaf": 4,
             "random_state": random_state,
-            "n_estimators": 100,
-            "n_jobs": -1,
         }
         default_params.update(params)
-        return RandomForestClassifier(**default_params)
+        return DecisionTreeClassifier(**default_params)
 
-    elif model_key == "xgboost":
+    elif model_key == "knn":
         default_params = {
-            "scale_pos_weight": scale_pos_weight,
+            "n_neighbors": 7,
+            "weights": "distance",
+        }
+        default_params.update(params)
+        return KNeighborsClassifier(**default_params)
+
+    elif model_key == "svm":
+        default_params = {
+            "class_weight": "balanced",
+            "probability": True,
+            "kernel": "rbf",
             "random_state": random_state,
-            "n_estimators": 100,
-            "eval_metric": "logloss",
-            "n_jobs": -1,
         }
         default_params.update(params)
-        return XGBClassifier(**default_params)
-
-    elif model_key == "catboost":
-        default_params = {
-            "auto_class_weights": "Balanced",
-            "random_seed": random_state,
-            "iterations": 100,
-            "verbose": 0,
-            "thread_count": -1,
-            "allow_writing_files": False,
-        }
-        default_params.update(params)
-        return CatBoostClassifier(**default_params)
+        return SVC(**default_params)
 
 
 def train_classifier(
@@ -148,8 +140,8 @@ def train_classifier(
     Args:
         X_train: Training features DataFrame (6 approved features).
         y_train: Training target labels.
-        model_type: One of 'logistic_regression', 'random_forest', 'xgboost', 'catboost'.
-        scale_numeric: Whether to scale numeric features (recommended True for Logistic Regression).
+        model_type: One of 'logistic_regression', 'decision_tree', 'knn', 'svm'.
+        scale_numeric: Whether to scale numeric features.
         hyperparameters: Optional dictionary of model parameters.
         random_state: Seed for reproducibility.
 
@@ -179,7 +171,7 @@ def train_classifier(
 def train_model(
     X_train: pd.DataFrame,
     y_train: pd.Series,
-    model_type: str = "random_forest",
+    model_type: str = "decision_tree",
     hyperparameters: Optional[Dict[str, Any]] = None,
 ) -> Pipeline:
     """Convenience wrapper conforming to the original train_model signature."""
@@ -199,7 +191,7 @@ def train_and_compare_all_models(
     models_to_train: Optional[List[str]] = None,
     random_state: int = RANDOM_STATE,
 ) -> Tuple[Dict[str, Pipeline], pd.DataFrame, Dict[str, Any]]:
-    """Train and evaluate all four classifiers on train and test splits.
+    """Train and evaluate the four approved classifiers on train and test splits.
 
     Args:
         X_train: Training features.
@@ -221,6 +213,7 @@ def train_and_compare_all_models(
 
     for model_name in targets_to_run:
         print(f"[MaintainIQ] Training {model_name}...")
+        t0 = time.perf_counter()
         pipeline = train_classifier(
             X_train=X_train,
             y_train=y_train,
@@ -228,6 +221,7 @@ def train_and_compare_all_models(
             scale_numeric=True,
             random_state=random_state,
         )
+        train_time_sec = time.perf_counter() - t0
         fitted_pipelines[model_name] = pipeline
 
         # Evaluate strictly on test set
@@ -235,6 +229,7 @@ def train_and_compare_all_models(
         eval_metrics["imbalance_strategy"] = IMBALANCE_STRATEGIES.get(
             model_name, "N/A"
         )
+        eval_metrics["training_time_sec"] = float(train_time_sec)
         metrics_by_model[model_name] = eval_metrics
 
     comparison_df = build_comparison_dataframe(metrics_by_model)
@@ -284,7 +279,7 @@ def train_champion_model(
     random_state: int = RANDOM_STATE,
     test_size: float = TEST_SIZE,
 ) -> Pipeline:
-    """Train exclusively the champion XGBoost pipeline on the training split.
+    """Train exclusively the champion Decision Tree pipeline on the training split.
 
     Used for fast initial setup or on-demand provisioning without retraining
     all four benchmark models.
@@ -296,7 +291,7 @@ def train_champion_model(
         test_size: Proportion of dataset for held-out evaluation.
 
     Returns:
-        Fitted scikit-learn Pipeline (preprocessing + XGBoost).
+        Fitted scikit-learn Pipeline (preprocessing + Decision Tree).
     """
     raw_df = load_raw_data(data_path, validate=True)
     cleaned_df = clean_raw_data(raw_df)
@@ -308,7 +303,7 @@ def train_champion_model(
     pipeline = train_classifier(
         X_train=X_train,
         y_train=y_train,
-        model_type="xgboost",
+        model_type="decision_tree",
         scale_numeric=True,
         random_state=random_state,
     )
@@ -328,7 +323,7 @@ def ensure_model_pipeline(
 
     1. If model_path exists on disk, deserializes and returns it immediately.
     2. If missing, ensures the raw dataset is present (downloading from UCI if needed).
-    3. Trains exclusively the champion XGBoost pipeline, saves it to model_path,
+    3. Trains exclusively the champion Decision Tree pipeline, saves it to model_path,
        and returns the fitted pipeline.
 
     Args:
@@ -357,7 +352,7 @@ def ensure_model_pipeline(
                 f"Model missing at '{target_model}' and dataset missing at '{target_data}'."
             )
 
-    print(f"[MaintainIQ] Provisioning champion XGBoost pipeline to '{target_model}'...")
+    print(f"[MaintainIQ] Provisioning champion Decision Tree pipeline to '{target_model}'...")
     return train_champion_model(data_path=target_data, model_save_path=target_model)
 
 
@@ -374,8 +369,8 @@ def run_training_pipeline(
     1. Loads raw dataset from data_path.
     2. Deduplicates and separates the 6 features from 'Machine failure'.
     3. Generates 80/20 stratified split.
-    4. Trains Logistic Regression, Random Forest, XGBoost, and CatBoost.
-    5. Computes Precision, Recall, F1, PR-AUC, ROC-AUC, and latency.
+    4. Trains Logistic Regression, Decision Tree, KNN, and SVM.
+    5. Computes Accuracy, Precision, Recall, F1, PR-AUC, ROC-AUC, latency, and training time.
     6. Saves comparison table and JSON metrics to reports/tables/.
     7. Saves the best performing model (by PR-AUC) to models/model.joblib.
 

@@ -10,7 +10,7 @@ from src.train import train_classifier
 
 @pytest.fixture
 def trained_pipeline() -> Pipeline:
-    """Fixture providing a small trained Random Forest pipeline."""
+    """Fixture providing a small trained Decision Tree pipeline."""
     X_train = pd.DataFrame(
         {
             "Type": ["M", "L", "H", "L"] * 5,
@@ -22,7 +22,7 @@ def trained_pipeline() -> Pipeline:
         }
     )
     y_train = pd.Series([0, 1, 0, 1] * 5)
-    return train_classifier(X_train, y_train, model_type="random_forest")
+    return train_classifier(X_train, y_train, model_type="decision_tree")
 
 
 def test_assess_risk_level():

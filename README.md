@@ -11,10 +11,13 @@ Unplanned machine breakdown in industrial manufacturing leads to costly downtime
 ### Key Capabilities
 - **Leakage-Safe Preprocessing Pipeline**: Fitted exclusively on training data using a reproducible 80/20 stratified split (`random_state=42`). Categorical features (`Type`) are one-hot encoded and numerical features are scaled without test data contamination.
 - **Multi-Model Benchmark**: Trains and evaluates four classifiers with tailored class-imbalance mitigation:
+  - **Decision Tree Classifier** (Cost-sensitive tree split reweighting, `max_depth=8`, `min_samples_leaf=4`)
+  - **Support Vector Machine (SVM)** (Margin-weighted RBF support vectors with probability estimation)
+  - **K-Nearest Neighbors (KNN)** (Distance-weighted neighbor voting, `k=7`)
   - **Logistic Regression** (Linear baseline with inverse-frequency class weights)
-  - **Random Forest** (Bootstrap ensemble with balanced subsampling)
-  - **XGBoost** (Gradient-boosted decision trees with training-derived `scale_pos_weight`)
-  - **CatBoost** (Gradient boosting with automated inverse-frequency balancing)
+- **Optional Syllabus Extensions**:
+  - **K-Means Clustering**: Unsupervised operational machine working regime segmentation.
+  - **Linear Regression**: Continuous physical parameter estimation (Cutting Torque [Nm]).
 - **Single Machine Risk Scoring**: Interactive UI allowing real-time telemetry inputs with model-based risk bands for operational guidance (not guaranteed maintenance decisions):
   - **Low Risk** (probability < 30%): Model predicts nominal operating state
   - **Medium Risk** (probability >= 30% and < 70%): Elevated risk band indicating inspection recommended
@@ -23,7 +26,7 @@ Unplanned machine breakdown in industrial manufacturing leads to costly downtime
 - **Model Explainability & XAI**:
   - Global Permutation Feature Importance evaluating drop in PR-AUC over 10 repeats on the test split.
   - Local instance attributions powered by TreeSHAP for individual prediction transparency.
-- **Interactive Streamlit Dashboard**: Multi-tab user interface for system overview, inference, batch analysis, classifier benchmarking, and explainability.
+- **Interactive Streamlit Dashboard**: Multi-tab user interface for system overview, inference, batch analysis, classifier benchmarking, explainability, and syllabus experimental extensions.
 
 ---
 
@@ -65,12 +68,12 @@ In industrial predictive maintenance, failures represent only ~3.39% of operatin
 
 ### Benchmark Results on Held-Out Test Set (2,000 samples, 68 failures)
 
-| Model | PR-AUC | F1-Score | Precision | Recall | ROC-AUC | Imbalance Strategy |
-|---|:---:|:---:|:---:|:---:|:---:|---|
-| **XGBoost** (Selected) | **0.8283** | **0.7376** | 0.7123 | 0.7647 | 0.9651 | `scale_pos_weight = n_neg / n_pos` (~28.52) |
-| **Random Forest** | 0.7368 | 0.7132 | **0.7541** | 0.6765 | 0.9574 | `class_weight='balanced'` |
-| **CatBoost** | 0.7068 | 0.5133 | 0.3671 | **0.8529** | **0.9702** | `auto_class_weights='Balanced'` |
-| **Logistic Regression** | 0.3818 | 0.2419 | 0.1418 | 0.8235 | 0.9070 | `class_weight='balanced'` |
+| Model | PR-AUC | F1-Score | Precision | Recall | Accuracy | ROC-AUC | Imbalance Strategy |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|---|
+| **Decision Tree** (Selected Champion) | **0.7291** | **0.5644** | 0.4254 | 0.8382 | 0.9560 | 0.9097 | `class_weight='balanced'` |
+| **Support Vector Machine (SVM)** | 0.6119 | 0.4251 | 0.2785 | **0.8971** | 0.9175 | **0.9655** | `class_weight='balanced', probability=True` |
+| **K-Nearest Neighbors (KNN)** | 0.5516 | 0.4348 | **0.8333** | 0.2941 | **0.9740** | 0.8566 | `weights='distance', k=7` |
+| **Logistic Regression** | 0.3818 | 0.2419 | 0.1418 | 0.8235 | 0.8245 | 0.9070 | `class_weight='balanced'` |
 
 ---
 
@@ -94,7 +97,8 @@ MaintainIQ/
 │   ├── train.py                # Four-model training and evaluation pipeline
 │   ├── evaluate.py             # Classification metric computation and reports
 │   ├── predict.py              # Inference engine and risk assessment
-│   └── explain.py              # Permutation importance and TreeSHAP explainability
+│   ├── explain.py              # Permutation importance and TreeSHAP explainability
+│   └── experimental.py         # K-Means clustering and Linear Regression extensions
 ├── scripts/
 │   └── download_data.py        # Dataset downloader and checksum validator
 ├── tests/
@@ -104,7 +108,8 @@ MaintainIQ/
 │   ├── test_evaluation.py      # Metric computation and reporting tests
 │   ├── test_predictions.py     # Single/batch prediction and risk scoring tests
 │   ├── test_explain.py         # Permutation importance and SHAP tests
-│   └── test_upload_validation.py # CSV upload schema and validation tests
+│   ├── test_upload_validation.py # CSV upload schema and validation tests
+│   └── test_experimental.py    # K-Means & Linear Regression experimental tests
 ├── reports/
 │   ├── figures/                # Feature importance plots (gitignored)
 │   ├── tables/                 # Benchmark tables and metrics JSON (gitignored)
@@ -157,7 +162,7 @@ python scripts/download_data.py
 ```
 
 ### Step 2: Train Models & Generate Benchmarks
-Performs a stratified 80/20 train/test split, trains Logistic Regression, Random Forest, XGBoost, and CatBoost, evaluates test metrics, saves comparison reports to `reports/tables/`, and exports the best pipeline to `models/model.joblib`:
+Performs a stratified 80/20 train/test split, trains Decision Tree, SVM, KNN, and Logistic Regression, evaluates test metrics, saves comparison reports to `reports/tables/`, and exports the champion pipeline to `models/model.joblib`:
 ```bash
 python -m src.train
 ```
@@ -169,7 +174,7 @@ python -m src.explain
 ```
 
 ### Step 4: Run the Complete Test Suite
-Runs all 66 unit and integration tests with verbose reporting:
+Runs all 72 unit and integration tests with verbose reporting:
 ```bash
 python -m pytest tests/ -v
 ```
@@ -191,7 +196,7 @@ Running the pipeline generates the following files (all excluded by `.gitignore`
 | File Path | Generated By | Description |
 |---|---|---|
 | `data/raw/ai4i2020.csv` | `python scripts/download_data.py` | Official UCI AI4I 2020 raw CSV (10,000 records) |
-| `models/model.joblib` | `python -m src.train` | Serialized best pipeline (XGBoost + Preprocessor) |
+| `models/model.joblib` | `python -m src.train` | Serialized champion pipeline (Decision Tree + Preprocessor) |
 | `reports/tables/model_comparison.csv` | `python -m src.train` | Primary benchmark table across all 4 classifiers |
 | `reports/tables/model_metrics.json` | `python -m src.train` | Detailed metric breakdown including confusion matrices |
 | `reports/tables/feature_importance.csv`| `python -m src.explain` | Ranked permutation feature importance table |

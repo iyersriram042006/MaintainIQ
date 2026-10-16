@@ -35,7 +35,7 @@ The following nine peer-reviewed publications provide the theoretical foundation
 - **Objective**: Conduct a comprehensive systematic mapping of machine learning algorithms, sensor telemetry types, and application domains across industrial predictive maintenance.
 - **Method**: Analyzed over 200 peer-reviewed studies published between 2009 and 2018, categorizing maintenance objectives by algorithm family (linear models, support vector machines, decision tree ensembles, neural networks) and target physical assets.
 - **Key Findings**: The authors identified that tree-based ensemble algorithms (specifically Random Forest and gradient boosting variants) consistently outperformed linear baselines, single decision trees, and standalone neural networks on structured tabular sensory telemetry. Their superiority stems from robust handling of mixed feature scales, resistance to sensor noise, and the capacity to capture non-linear interactions without requiring massive training datasets.
-- **Relevance to MaintainIQ**: Directly justifies MaintainIQ's multi-model comparative architecture, specifically contrasting a linear baseline (Logistic Regression) against tree-based bagging and boosting ensembles (Random Forest, XGBoost, CatBoost).
+- **Relevance to MaintainIQ**: Informs MaintainIQ's multi-model comparative architecture across distinct inductive biases (Logistic Regression, Decision Trees, K-Nearest Neighbors, Support Vector Machines).
 
 ---
 
@@ -45,7 +45,7 @@ The following nine peer-reviewed publications provide the theoretical foundation
 - **Objective**: Benchmark machine learning classifiers and data-balancing interventions across rare failure modes on the UCI AI4I 2020 Predictive Maintenance Dataset.
 - **Method**: The authors benchmarked 20 experimental configurations comparing Random Forest, XGBoost, Support Vector Machines, K-Nearest Neighbors, and Multinomial Logistic Regression under different data balancing strategies (including SMOTE, random oversampling, and algorithmic weighting) on the AI4I 2020 dataset.
 - **Key Findings**: The study reported that gradient boosting models (notably XGBoost) exhibit strong intrinsic resilience on tabular sensor telemetry even under severe class skew. When optimizing for macro-averaged F1 and recall across rare failure modes, algorithmic class reweighting (penalizing minority misclassifications) preserved feature distributions better than aggressive synthetic oversampling, which introduced synthetic noise near operational decision boundaries.
-- **Relevance to MaintainIQ**: Informs MaintainIQ's class-imbalance mitigation design: adopting training-only cost-sensitive class reweighting (`scale_pos_weight` in XGBoost, `class_weight='balanced'` in Random Forest and Logistic Regression, and `auto_class_weights='Balanced'` in CatBoost) rather than applying synthetic oversampling to evaluation splits.
+- **Relevance to MaintainIQ**: Informs MaintainIQ's class-imbalance mitigation design: adopting training-only cost-sensitive class reweighting (`class_weight='balanced'` in Logistic Regression, Decision Tree, and Support Vector Machine, and distance weighting in KNN) rather than applying synthetic oversampling to evaluation splits.
 
 ---
 
@@ -65,7 +65,7 @@ The following nine peer-reviewed publications provide the theoretical foundation
 - **Objective**: Formulate a reproducible multicriteria decision-making framework combining Entropy-based weighting with TOPSIS to select optimal predictive maintenance classifiers balancing failure detection, false alarm rates, and computational execution speed.
 - **Method**: Evaluated Logistic Regression, Random Forest, XGBoost, and LightGBM across two industrial datasets: real-world metro air compressor data (MetroPT) and the **UCI AI4I 2020 dataset**, incorporating stratified repeated evaluation, controlled hyperparameter optimization, and extensive perturbation sensitivity analysis.
 - **Key Findings**: The authors established that evaluating predictive maintenance algorithms requires multidimensional assessment: while models can exhibit comparable ROC-AUC, their trade-offs between False Positives (unnecessary plant stoppages) and False Negatives (unmitigated breakdowns) differ dramatically. Tree-based gradient boosters dominated linear classifiers across both datasets, providing superior F1 performance while sustaining microsecond-level inference latency suitable for operational deployment.
-- **Relevance to MaintainIQ**: Directly substantiates MaintainIQ's four-model benchmark (Logistic Regression, Random Forest, XGBoost) on the exact same AI4I 2020 dataset and reinforces the project's reporting of precision, recall, confusion matrix components, and per-sample inference latency.
+- **Relevance to MaintainIQ**: Directly substantiates MaintainIQ's multicriteria benchmark on the exact same AI4I 2020 dataset and reinforces the project's reporting of precision, recall, confusion matrix components, and per-sample inference latency across distinct algorithm families.
 
 ---
 
@@ -123,20 +123,20 @@ MaintainIQ addresses this research gap by demonstrating a **leakage-safe, reprod
 
 ### 3.2 Justification of the Four-Model Comparative Framework
 
-MaintainIQ evaluates four distinct classification paradigms to investigate how inductive biases impact industrial telemetry modeling:
+MaintainIQ evaluates four distinct classification paradigms to investigate how inductive biases impact industrial telemetry modeling under strict syllabus constraints:
 
 1. **Logistic Regression (Linear Baseline)**:
    - *Architecture*: Generalized linear model with L2 regularization and inverse class frequency weighting (`class_weight='balanced'`).
    - *Rationale*: Serves as a vital empirical baseline. While computationally instantaneous and fully interpretable, its linear decision boundary cannot model non-linear physical interactions (such as mechanical power $P = \tau \cdot \omega$ or cumulative thermal-mechanical stress).
-2. **Random Forest (Bagging Ensemble)**:
-   - *Architecture*: Bootstrap aggregation of decorrelated decision trees with balanced subsampling (`class_weight='balanced'`).
-   - *Rationale*: Mitigates variance and overfitting. Excellent robustness to local sensor noise, consistently producing high precision and a low false-alarm profile in manufacturing literature [2], [5], [6].
-3. **XGBoost (Extreme Gradient Boosting)**:
-   - *Architecture*: Second-order Taylor expansion gradient boosting with regularization ($\lambda, \gamma$) and training-derived positive class weighting (`scale_pos_weight = n_neg / n_pos`).
-   - *Rationale*: Industry standard for tabular telemetry. Highly effective at capturing non-linear sensor thresholds governing thermodynamic and mechanical degradation [3], [5], [6].
-4. **CatBoost (Categorical Gradient Boosting)**:
-   - *Architecture*: Symmetric (oblivious) decision trees with ordered boosting and internal automated frequency balancing (`auto_class_weights='Balanced'`).
-   - *Rationale*: Avoids target leakage during categorical encoding and prevents prediction shift, frequently maximizing recall on rare minority failure modes [3].
+2. **Decision Tree Classifier (Non-linear Rule Baseline & Champion Prototype)**:
+   - *Architecture*: Recursive binary partitioning estimator with cost-sensitive class reweighting (`class_weight='balanced'`).
+   - *Rationale*: Directly splits on critical physical thresholds (e.g., cutting torque $\tau > 60$ Nm or tool wear $t > 200$ min). It achieves the highest PR-AUC (0.7291) among all single models, provides microsecond inference latency (0.94 µs/sample), and enables local explanations via TreeSHAP.
+3. **Support Vector Machine (Kernel Maximum-Margin Classifier)**:
+   - *Architecture*: Radial Basis Function (RBF) kernel SVM with balanced class weighting (`class_weight='balanced'`) and Platt probability calibration (`probability=True`).
+   - *Rationale*: Constructs a maximum-margin separating hyperplane in infinite-dimensional reproducing kernel Hilbert space, capturing complex non-linear boundary manifolds. It achieves the highest recall (0.8971) and highest ROC-AUC (0.9655) on rare failure events.
+4. **K-Nearest Neighbors (Non-Parametric Instance-Based Learning)**:
+   - *Architecture*: Distance-weighted k-NN (`weights='distance'`, $k=7$) over standard-scaled telemetry features.
+   - *Rationale*: Classifies new operational states by querying geometric proximity to historical operating instances in feature space. It yields the highest precision (0.8333) and lowest false-alarm count (FP = 4).
 
 ---
 
@@ -171,7 +171,7 @@ As emphasized by Matzka [1] and Theissler et al. [4], maintenance personnel will
 To maintain academic rigor, the findings reported in the cited literature must be clearly distinguished from MaintainIQ's experimental results:
 
 1. **Synthetic Nature of Dataset**: The UCI AI4I 2020 dataset was generated using a phenomenological physical simulator [1], [5]. While it realistically reflects theoretical milling machine physics, synthetic sensor data inherently lacks the unpredictable stochastic anomalies, electrical noise, environmental degradation, and maintenance log inaccuracies encountered on real-world factory floors.
-2. **No Real-World Mechanical Reliability Guarantees**: MaintainIQ's empirical test results (e.g., XGBoost achieving a PR-AUC of 0.8283 and F1 of 0.7376 on the held-out test split) reflect performance within the simulation distribution. **These results do not establish real-world industrial reliability guarantees** and should not be deployed in live production environments without prior calibration on physical equipment telemetry.
+2. **No Real-World Mechanical Reliability Guarantees**: MaintainIQ's empirical test results (e.g., Decision Tree achieving a PR-AUC of 0.7291 and F1 of 0.5644 on the held-out test split) reflect performance within the simulation distribution. **These results do not establish real-world industrial reliability guarantees** and should not be deployed in live production environments without prior calibration on physical equipment telemetry.
 3. **Statistical Reliance vs. Physical Causation**: Feature importance scores and SHAP attributions quantify the statistical dependencies utilized by the mathematical estimator to minimize loss. They reflect correlation and predictive utility within the dataset, not physical or mechanical causation.
 
 ---

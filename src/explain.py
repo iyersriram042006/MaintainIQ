@@ -135,8 +135,8 @@ def explain_prediction(
 ) -> Dict[str, Any]:
     """Compute local feature attributions for a single machine telemetry record.
 
-    Uses TreeSHAP for tree-based estimators (XGBoost, Random Forest, CatBoost),
-    falling back to model coefficients or baseline deviation if SHAP is inapplicable.
+    Uses TreeSHAP for tree-based estimators (Decision Tree), falling back to
+    model coefficients for Logistic Regression or perturbation sensitivity for KNN/SVM.
 
     Args:
         pipeline: Trained scikit-learn Pipeline.
@@ -188,16 +188,20 @@ def explain_prediction(
         explainer = shap.TreeExplainer(classifier)
         shap_vals = explainer.shap_values(X_trans)
 
-        # Handle binary classification outputs (some versions return list of [neg, pos])
+        # Handle binary classification outputs (some versions return list of [neg, pos] or 3D array)
         if isinstance(shap_vals, list):
             target_shap = shap_vals[1]
+        elif isinstance(shap_vals, np.ndarray) and shap_vals.ndim == 3:
+            target_shap = shap_vals[:, :, 1]
         else:
             target_shap = shap_vals
 
         if hasattr(explainer, "expected_value"):
             exp_val = explainer.expected_value
-            if isinstance(exp_val, (list, np.ndarray)):
+            if isinstance(exp_val, (list, np.ndarray)) and len(exp_val) > 1:
                 base_val = float(exp_val[1])
+            elif isinstance(exp_val, (list, np.ndarray)) and len(exp_val) == 1:
+                base_val = float(exp_val[0])
             else:
                 base_val = float(exp_val)
 

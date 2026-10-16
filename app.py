@@ -4,8 +4,9 @@ Interactive Streamlit dashboard providing:
 1. Overview & Dataset Context (UCI AI4I 2020 Predictive Maintenance).
 2. Single Machine Risk Prediction with Real-Time Physical Indicators & SHAP Attributions.
 3. Batch CSV Telemetry Evaluation with Validation & Downloadable Reports.
-4. Model Benchmarking & Metric Comparison (Logistic Regression, Random Forest, XGBoost, CatBoost).
+4. Model Benchmarking & Metric Comparison (Logistic Regression, Decision Tree, KNN, SVM).
 5. Explainability & Permutation Feature Importance.
+6. Optional Syllabus Experimental Extensions (K-Means Clustering & Linear Regression).
 """
 
 from pathlib import Path
@@ -33,6 +34,8 @@ from src.data_loader import load_raw_data
 from src.explain import CAUSATION_DISCLAIMER, explain_prediction
 from src.predict import (
     ensure_model_pipeline,
+    evaluate_batch_predictions,
+    extract_actual_failure_column,
     load_model,
     predict_batch_dataframe,
     predict_failure_risk,
@@ -44,46 +47,52 @@ from src.predict import (
 # -----------------------------------------------------------------------------
 CANONICAL_BENCHMARK_ROWS = [
     {
-        "Model": "xgboost",
-        "PR-AUC": 0.8283383713064086,
-        "F1-Score": 0.7375886524822695,
-        "Precision": 0.7123287671232876,
-        "Recall": 0.7647058823529411,
-        "ROC-AUC": 0.9651458409450737,
-        "TP": 52,
-        "FP": 21,
-        "FN": 16,
-        "TN": 1911,
-        "Latency (ms/sample)": 0.0014329374971566722,
-        "Imbalance Strategy": "scale_pos_weight=n_neg/n_pos (computed strictly on training split)",
+        "Model": "decision_tree",
+        "PR-AUC": 0.7291454013443732,
+        "F1-Score": 0.5643564356435643,
+        "Precision": 0.4253731343283582,
+        "Recall": 0.8382352941176471,
+        "Accuracy": 0.9560,
+        "ROC-AUC": 0.9096600596760445,
+        "TP": 57,
+        "FP": 77,
+        "FN": 11,
+        "TN": 1855,
+        "Latency (ms/sample)": 0.0009437085100216791,
+        "Training Time (s)": 0.018147416005376726,
+        "Imbalance Strategy": "class_weight='balanced' (cost-sensitive tree split reweighting)",
     },
     {
-        "Model": "random_forest",
-        "PR-AUC": 0.7367957544463846,
-        "F1-Score": 0.7131782945736435,
-        "Precision": 0.7540983606557377,
-        "Recall": 0.6764705882352942,
-        "ROC-AUC": 0.9573628364389234,
-        "TP": 46,
-        "FP": 15,
-        "FN": 22,
-        "TN": 1917,
-        "Latency (ms/sample)": 0.008197625007596798,
-        "Imbalance Strategy": "class_weight='balanced' (subsample-balanced bootstrap trees)",
+        "Model": "svm",
+        "PR-AUC": 0.6119367651810571,
+        "F1-Score": 0.4250871080139373,
+        "Precision": 0.2785388127853881,
+        "Recall": 0.8970588235294118,
+        "Accuracy": 0.9175,
+        "ROC-AUC": 0.9654655340397028,
+        "TP": 61,
+        "FP": 158,
+        "FN": 7,
+        "TN": 1774,
+        "Latency (ms/sample)": 0.03986733350029681,
+        "Training Time (s)": 1.0987406659987755,
+        "Imbalance Strategy": "class_weight='balanced', probability=True (margin-weighted RBF support vectors)",
     },
     {
-        "Model": "catboost",
-        "PR-AUC": 0.7067890404676719,
-        "F1-Score": 0.5132743362831859,
-        "Precision": 0.3670886075949367,
-        "Recall": 0.8529411764705882,
-        "ROC-AUC": 0.9701543660942638,
-        "TP": 58,
-        "FP": 100,
-        "FN": 10,
-        "TN": 1832,
-        "Latency (ms/sample)": 0.0017976249946514145,
-        "Imbalance Strategy": "auto_class_weights='Balanced' (CatBoost internal inverse frequency balancing)",
+        "Model": "knn",
+        "PR-AUC": 0.5515918238990715,
+        "F1-Score": 0.43478260869565216,
+        "Precision": 0.8333333333333334,
+        "Recall": 0.29411764705882354,
+        "Accuracy": 0.9740,
+        "ROC-AUC": 0.8565757824869079,
+        "TP": 20,
+        "FP": 4,
+        "FN": 48,
+        "TN": 1928,
+        "Latency (ms/sample)": 0.006463728990638629,
+        "Training Time (s)": 0.008338250016095117,
+        "Imbalance Strategy": "distance-weighted neighbors (weights='distance', k=7)",
     },
     {
         "Model": "logistic_regression",
@@ -91,25 +100,27 @@ CANONICAL_BENCHMARK_ROWS = [
         "F1-Score": 0.24190064794816415,
         "Precision": 0.14177215189873418,
         "Recall": 0.8235294117647058,
+        "Accuracy": 0.8245,
         "ROC-AUC": 0.9069540859822189,
         "TP": 56,
         "FP": 339,
         "FN": 12,
         "TN": 1593,
-        "Latency (ms/sample)": 0.001078854504157789,
+        "Latency (ms/sample)": 0.001086541495169513,
+        "Training Time (s)": 0.03610800000024028,
         "Imbalance Strategy": "class_weight='balanced' (inverse class frequency reweighting)",
     },
 ]
 
 CANONICAL_FEATURE_IMPORTANCE_ROWS = [
-    {"feature": "Torque [Nm]", "importance_mean": 0.5985471032421681, "importance_std": 0.017996577630474977},
-    {"feature": "Air temperature [K]", "importance_mean": 0.5061970518777367, "importance_std": 0.05360396797617396},
-    {"feature": "Rotational speed [rpm]", "importance_mean": 0.41827969367056284, "importance_std": 0.028115308468900733},
-    {"feature": "Tool wear [min]", "importance_mean": 0.3241663663458353, "importance_std": 0.039728038679673526},
-    {"feature": "Process temperature [K]", "importance_mean": 0.26603794918908613, "importance_std": 0.0330716459033698},
-    {"feature": "Type_L", "importance_mean": 0.027290840846311493, "importance_std": 0.010212429135702592},
-    {"feature": "Type_M", "importance_mean": 0.004557387660595491, "importance_std": 0.00322099698667976},
-    {"feature": "Type_H", "importance_mean": 0.002836467927875086, "importance_std": 0.0035406150591259346},
+    {"feature": "Torque [Nm]", "importance_mean": 0.5353822940957836, "importance_std": 0.019845359582705623},
+    {"feature": "Air temperature [K]", "importance_mean": 0.500547059117967, "importance_std": 0.037281311189640884},
+    {"feature": "Rotational speed [rpm]", "importance_mean": 0.4876523191717295, "importance_std": 0.014903595680900095},
+    {"feature": "Tool wear [min]", "importance_mean": 0.26866464066901746, "importance_std": 0.021379341221766514},
+    {"feature": "Process temperature [K]", "importance_mean": 0.25609364793818784, "importance_std": 0.018356099279716768},
+    {"feature": "Type_L", "importance_mean": 0.055914303931631895, "importance_std": 0.03327134788238639},
+    {"feature": "Type_M", "importance_mean": 0.0, "importance_std": 0.0},
+    {"feature": "Type_H", "importance_mean": 0.0, "importance_std": 0.0},
 ]
 
 # -----------------------------------------------------------------------------
@@ -131,11 +142,11 @@ def get_cached_model():
     """Load and cache the trained model pipeline.
 
     If models/model.joblib is missing (e.g. on Streamlit Community Cloud),
-    automatically provisions the champion XGBoost pipeline using the official dataset.
+    automatically provisions the champion Decision Tree pipeline using the official dataset.
     """
     try:
         if not MODEL_PATH.exists():
-            with st.spinner("⚙️ Setting up MaintainIQ champion model pipeline (XGBoost)..."):
+            with st.spinner("⚙️ Setting up MaintainIQ champion model pipeline (Decision Tree)..."):
                 return ensure_model_pipeline(MODEL_PATH)
         return load_model(MODEL_PATH)
     except Exception as e:
@@ -237,6 +248,7 @@ def main():
             "📁 CSV Batch Evaluation",
             "📈 Model Benchmarks",
             "🔍 Explainability & SHAP",
+            "🧪 Syllabus Experimental Extensions",
         ]
     )
 
@@ -263,8 +275,8 @@ def main():
             fail_str = f"{dataset_stats['failure_rate']:.2f}%" if dataset_stats else "3.39%"
             st.metric("Failure Incidence", fail_str, "Severe Class Imbalance")
         with col3:
-            best_model_name = "XGBoost"
-            best_prauc = "0.8283"
+            best_model_name = "DECISION TREE"
+            best_prauc = "0.7291"
             if comparison_df is not None and not comparison_df.empty:
                 best_model_name = str(comparison_df.iloc[0]["Model"]).upper()
                 best_prauc = f"{float(comparison_df.iloc[0]['PR-AUC']):.4f}"
@@ -591,17 +603,72 @@ def main():
                     with st.spinner("Executing batch inference across pipeline..."):
                         annotated_df = predict_batch_dataframe(model, user_df)
 
-                    # Summary Metrics Row
-                    total_batch = len(annotated_df)
-                    pred_fails = int((annotated_df["predicted_failure"] == 1).sum())
-                    high_risk = int((annotated_df["risk_level"] == "High").sum())
-                    norm_count = total_batch - pred_fails
+                    actual_col = extract_actual_failure_column(user_df)
 
-                    b1, b2, b3, b4 = st.columns(4)
-                    b1.metric("Machines Evaluated", f"{total_batch:,}")
-                    b2.metric("Predicted Failures", f"{pred_fails:,}", f"{(pred_fails/total_batch)*100:.1f}%")
-                    b3.metric("High-Risk Alerts", f"{high_risk:,}", "Immediate Action")
-                    b4.metric("Normal Operating", f"{norm_count:,}")
+                    if actual_col is not None:
+                        batch_metrics = evaluate_batch_predictions(annotated_df, actual_col)
+
+                        st.info(
+                            f"🎯 **Ground-Truth Failure Labels Detected (`{actual_col}`)**\n\n"
+                            "Displaying separate actual versus predicted breakdown. "
+                            "**Predictions are model inferences and are strictly evaluated against ground truth, never treated as actual outcomes.**"
+                        )
+
+                        st.markdown("##### Ground Truth vs. Model Predictions")
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.metric("Batch Records Evaluated", f"{batch_metrics['total_samples']:,}")
+                        c2.metric(
+                            "Actual Failures (Ground Truth)",
+                            f"{batch_metrics['actual_failures']:,}",
+                            f"{batch_metrics['actual_failure_rate']:.2f}% true failure rate",
+                        )
+                        c3.metric(
+                            "Predicted Failures (Model Output)",
+                            f"{batch_metrics['predicted_failures']:,}",
+                            f"{batch_metrics['predicted_failure_rate']:.2f}% flagged by model",
+                        )
+                        c4.metric(
+                            "High-Risk Alerts",
+                            f"{int((annotated_df['risk_level'] == 'High').sum()):,}",
+                            "Urgent Inspection Required",
+                        )
+
+                        st.markdown("##### Batch Classification Performance")
+                        p1, p2, p3, p4 = st.columns(4)
+                        p1.metric(
+                            "Recall (Detection Rate)",
+                            f"{batch_metrics['recall']:.4f}",
+                            f"Captured {batch_metrics['tp']}/{batch_metrics['actual_failures']} failures",
+                        )
+                        p2.metric(
+                            "Precision (Alert Reliability)",
+                            f"{batch_metrics['precision']:.4f}",
+                            f"{batch_metrics['fp']} False Positives",
+                        )
+                        p3.metric("F1-Score", f"{batch_metrics['f1']:.4f}")
+                        p4.metric("Accuracy", f"{batch_metrics['accuracy']:.4f}")
+
+                        with st.expander("📊 Uploaded Batch Confusion Matrix Detail"):
+                            cm1, cm2, cm3, cm4 = st.columns(4)
+                            cm1.metric("True Positives (TP)", str(batch_metrics["tp"]))
+                            cm2.metric("False Negatives (FN)", str(batch_metrics["fn"]))
+                            cm3.metric("False Positives (FP)", str(batch_metrics["fp"]))
+                            cm4.metric("True Negatives (TN)", str(batch_metrics["tn"]))
+                    else:
+                        st.caption(
+                            "ℹ️ **Unlabeled Operational Telemetry**: Uploaded file contains sensor features without ground-truth failure labels. "
+                            "Metrics below represent model inferences and operational risk classifications, not observed physical outcomes."
+                        )
+                        total_batch = len(annotated_df)
+                        pred_fails = int((annotated_df["predicted_failure"] == 1).sum())
+                        high_risk = int((annotated_df["risk_level"] == "High").sum())
+                        norm_count = total_batch - pred_fails
+
+                        b1, b2, b3, b4 = st.columns(4)
+                        b1.metric("Machines Evaluated", f"{total_batch:,}")
+                        b2.metric("Predicted Failures (Model Output)", f"{pred_fails:,}", f"{(pred_fails/total_batch)*100:.1f}%")
+                        b3.metric("High-Risk Alerts", f"{high_risk:,}", "Immediate Action")
+                        b4.metric("Predicted Normal", f"{norm_count:,}")
 
                     # Preview table
                     st.markdown("##### Annotated Fleet Predictions")
@@ -639,8 +706,8 @@ def main():
 
             # Comparative Bar Chart
             st.markdown("#### Primary Metric Benchmarks across Classifiers")
-            chart_metrics = ["PR-AUC", "F1-Score", "Recall", "Precision", "ROC-AUC"]
-            plot_df = comparison_df.set_index("Model")[chart_metrics]
+            chart_metrics = ["PR-AUC", "F1-Score", "Recall", "Precision", "Accuracy", "ROC-AUC"]
+            plot_df = comparison_df.set_index("Model")[[m for m in chart_metrics if m in comparison_df.columns]]
             st.bar_chart(plot_df)
 
             # Confusion Matrix Detail
@@ -658,10 +725,10 @@ def main():
             with st.expander("📘 Class Imbalance Mitigation Strategy Breakdown"):
                 st.markdown(
                     """
-                    1. **XGBoost**: Configured with `scale_pos_weight = n_neg / n_pos` (~28.52) computed strictly from training split labels. Achieved highest PR-AUC (0.8283) and F1-score (0.7376).
-                    2. **Random Forest**: Built with `class_weight='balanced'`, achieving the highest precision (75.4%) and lowest false positives.
-                    3. **CatBoost**: Employs `auto_class_weights='Balanced'` to optimize recall (85.29%), catching 58 of 68 test failures.
-                    4. **Logistic Regression**: Linear baseline with `class_weight='balanced'`. High recall (82.35%) but lower precision (14.18%), proving that non-linear interaction terms are essential for physical telemetry modeling.
+                    1. **Decision Tree**: Configured with `class_weight='balanced'`, `max_depth=8`, `min_samples_leaf=4`. Achieved highest PR-AUC (0.7291) and optimal harmonic balance of failure detection (Recall 83.82%) and precision (42.54%). Selected as champion model.
+                    2. **Support Vector Machine (SVM)**: RBF kernel with `class_weight='balanced'` and probability estimation. Achieved highest ROC-AUC (0.9655) and highest raw failure recall (89.71%, detecting 61 of 68 test failures).
+                    3. **K-Nearest Neighbors (KNN)**: Distance-weighted neighborhood (`k=7`). Achieved highest precision (83.33%) with only 4 false alarms, but lower recall (29.41%).
+                    4. **Logistic Regression**: Linear baseline with `class_weight='balanced'`. High recall (82.35%) with significant false positives (339 FP, precision 14.18%), demonstrating that non-linear decision boundaries are required for physical telemetry modeling.
                     """
                 )
         else:
@@ -729,6 +796,77 @@ def main():
                 - **Type Variants (L, M, H)**: Demonstrate minimal direct impact compared to real-time physical sensor signals.
                 """
             )
+
+    # =========================================================================
+    # TAB 6: SYLLABUS EXPERIMENTAL EXTENSIONS
+    # =========================================================================
+    with tabs[5]:
+        st.subheader("Optional Syllabus Experimental Extensions")
+        st.markdown(
+            """
+            *Note on Academic Scope*: These experimental modules utilize algorithms permitted
+            by the academic syllabus (**K-Means Clustering** and **Linear Regression**)
+            in clearly separated tasks that do **not** replace the primary binary failure classification models:
+            - **K-Means Clustering**: Unsupervised machine working regime grouping.
+            - **Linear Regression**: Continuous physical parameter estimation (Cutting Torque).
+            """
+        )
+
+        sub_tab1, sub_tab2 = st.tabs(["🧩 K-Means Regime Clustering", "📐 Linear Regression Modeling"])
+
+        with sub_tab1:
+            st.markdown("#### Unsupervised Equipment Operating Regime Segmentation (K-Means)")
+            st.write(
+                "Groups machines into distinct operational clusters based on continuous physical telemetry."
+            )
+            n_clusters = st.slider("Select Number of Operating Clusters (k)", min_value=2, max_value=6, value=3)
+
+            if RAW_DATA_FILE.exists():
+                try:
+                    from src.experimental import cluster_operating_regimes
+                    raw_df_exp = load_raw_data(RAW_DATA_FILE, validate=False)
+                    num_data = raw_df_exp[NUMERICAL_FEATURES].dropna()
+                    _, clustered_df, summary = cluster_operating_regimes(num_data, n_clusters=n_clusters)
+
+                    st.success(f"Successfully clustered {len(clustered_df):,} records into {n_clusters} operating regimes (Inertia: {summary['inertia']:.1f}).")
+
+                    profile_rows = []
+                    for cid, prof in summary["profiles"].items():
+                        profile_rows.append({
+                            "Cluster": f"Regime {cid}",
+                            "Machine Count": prof["sample_count"],
+                            "Avg Torque [Nm]": f"{prof['mean_torque']:.1f}",
+                            "Avg Speed [rpm]": f"{prof['mean_speed']:.0f}",
+                            "Avg Tool Wear [min]": f"{prof['mean_tool_wear']:.1f}",
+                            "Avg ΔT [K]": f"{prof['mean_temp_delta']:.2f}",
+                        })
+                    st.table(pd.DataFrame(profile_rows))
+                except Exception as ex:
+                    st.error(f"Error running K-Means clustering: {ex}")
+            else:
+                st.info("Raw dataset required for clustering.")
+
+        with sub_tab2:
+            st.markdown("#### Continuous Physical Torque Modeling (Linear Regression)")
+            st.write(
+                "Predicts cutting **Torque [Nm]** from spindle speed and thermal variables using Ordinary Least Squares."
+            )
+            if RAW_DATA_FILE.exists():
+                try:
+                    from src.experimental import train_torque_regression
+                    raw_df_exp = load_raw_data(RAW_DATA_FILE, validate=False)
+                    _, reg_metrics = train_torque_regression(raw_df_exp[NUMERICAL_FEATURES].dropna())
+
+                    r1, r2, r3 = st.columns(3)
+                    r1.metric("R² Score", f"{reg_metrics['r2_score']:.4f}", "Variance Explained")
+                    r2.metric("Mean Absolute Error (MAE)", f"{reg_metrics['mae_nm']:.2f} Nm", "Torque Accuracy")
+                    r3.metric("Root Mean Squared Error (RMSE)", f"{reg_metrics['rmse_nm']:.2f} Nm")
+
+                    st.caption("Demonstrates syllabus-permitted Linear Regression for continuous physical estimation without target leakage into binary failure classification.")
+                except Exception as ex:
+                    st.error(f"Error training Linear Regression model: {ex}")
+            else:
+                st.info("Raw dataset required for regression.")
 
 
 if __name__ == "__main__":

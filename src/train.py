@@ -278,6 +278,89 @@ def load_model(filepath: Union[str, Path] = MODEL_PATH) -> Any:
     return joblib.load(target)
 
 
+def train_champion_model(
+    data_path: Path = RAW_DATA_FILE,
+    model_save_path: Optional[Union[str, Path]] = MODEL_PATH,
+    random_state: int = RANDOM_STATE,
+    test_size: float = TEST_SIZE,
+) -> Pipeline:
+    """Train exclusively the champion XGBoost pipeline on the training split.
+
+    Used for fast initial setup or on-demand provisioning without retraining
+    all four benchmark models.
+
+    Args:
+        data_path: Path to raw dataset CSV.
+        model_save_path: Optional path to serialize the fitted model.
+        random_state: Seed for reproducible stratified split and model fit.
+        test_size: Proportion of dataset for held-out evaluation.
+
+    Returns:
+        Fitted scikit-learn Pipeline (preprocessing + XGBoost).
+    """
+    raw_df = load_raw_data(data_path, validate=True)
+    cleaned_df = clean_raw_data(raw_df)
+    X, y = split_features_target(cleaned_df)
+    X_train, _, y_train, _ = create_stratified_split(
+        X, y, test_size=test_size, random_state=random_state
+    )
+
+    pipeline = train_classifier(
+        X_train=X_train,
+        y_train=y_train,
+        model_type="xgboost",
+        scale_numeric=True,
+        random_state=random_state,
+    )
+
+    if model_save_path:
+        save_model(pipeline, model_save_path)
+
+    return pipeline
+
+
+def ensure_model_pipeline(
+    model_path: Union[str, Path] = MODEL_PATH,
+    data_path: Path = RAW_DATA_FILE,
+    auto_download: bool = True,
+) -> Any:
+    """Ensure a trained champion model pipeline is available.
+
+    1. If model_path exists on disk, deserializes and returns it immediately.
+    2. If missing, ensures the raw dataset is present (downloading from UCI if needed).
+    3. Trains exclusively the champion XGBoost pipeline, saves it to model_path,
+       and returns the fitted pipeline.
+
+    Args:
+        model_path: Target path to the serialized model file.
+        data_path: Path to the raw CSV dataset.
+        auto_download: Whether to attempt automatic dataset download if missing.
+
+    Returns:
+        Trained scikit-learn Pipeline.
+
+    Raises:
+        FileNotFoundError: If model and dataset are both missing and auto_download is False.
+    """
+    target_model = Path(model_path)
+    if target_model.exists():
+        return load_model(target_model)
+
+    target_data = Path(data_path)
+    if not target_data.exists():
+        if auto_download:
+            from scripts.download_data import download_dataset
+            print(f"[MaintainIQ] Dataset missing at '{target_data}'. Downloading from UCI...")
+            download_dataset(target_file=target_data)
+        else:
+            raise FileNotFoundError(
+                f"Model missing at '{target_model}' and dataset missing at '{target_data}'."
+            )
+
+    print(f"[MaintainIQ] Provisioning champion XGBoost pipeline to '{target_model}'...")
+    return train_champion_model(data_path=target_data, model_save_path=target_model)
+
+
 def run_training_pipeline(
     data_path: Path = RAW_DATA_FILE,
     output_tables_dir: Path = TABLES_DIR,

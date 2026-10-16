@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 
 from config.settings import EXCLUDED_FEATURES, FEATURE_COLUMNS, MODEL_PATH
-from src.train import load_model
+from src.train import ensure_model_pipeline, load_model
+
 
 
 def assess_risk_level(probability: float) -> str:

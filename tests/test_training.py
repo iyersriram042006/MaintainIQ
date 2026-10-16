@@ -11,12 +11,15 @@ from src.train import (
     IMBALANCE_STRATEGIES,
     SUPPORTED_MODELS,
     build_classifier_estimator,
+    ensure_model_pipeline,
     load_model,
     save_model,
     train_and_compare_all_models,
+    train_champion_model,
     train_classifier,
     train_model,
 )
+
 
 
 def create_mock_train_data(n_samples: int = 40) -> tuple:
@@ -128,3 +131,94 @@ def test_train_and_compare_all_models_workflow():
     assert "PR-AUC" in comp_df.columns
     assert "F1-Score" in comp_df.columns
     assert "Model" in comp_df.columns
+
+
+def create_mock_dataset_csv(filepath: Path, num_rows: int = 30) -> Path:
+    """Helper to write a valid minimal raw dataset CSV for pipeline training tests."""
+    df = pd.DataFrame(
+        {
+            "UDI": list(range(1, num_rows + 1)),
+            "Product ID": [f"M1486{i}" for i in range(num_rows)],
+            "Type": ["M"] * num_rows,
+            "Air temperature [K]": [298.1 + i * 0.1 for i in range(num_rows)],
+            "Process temperature [K]": [308.6 + i * 0.1 for i in range(num_rows)],
+            "Rotational speed [rpm]": [1550 + i * 10 for i in range(num_rows)],
+            "Torque [Nm]": [42.8 - i * 0.2 for i in range(num_rows)],
+            "Tool wear [min]": [i * 5 for i in range(num_rows)],
+            "Machine failure": [1 if i < 3 else 0 for i in range(num_rows)],
+            "TWF": [0] * num_rows,
+            "HDF": [0] * num_rows,
+            "PWF": [1 if i < 3 else 0 for i in range(num_rows)],
+            "OSF": [0] * num_rows,
+            "RNF": [0] * num_rows,
+        }
+    )
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    df.to_csv(filepath, index=False, encoding="utf-8")
+    return filepath
+
+
+def test_ensure_model_pipeline_loads_existing_artifact(tmp_path: Path):
+    """Verify that existing model artifact is loaded directly without data access."""
+    X_train, y_train = create_mock_train_data(20)
+    pipeline = train_classifier(X_train, y_train, model_type="random_forest")
+    model_file = tmp_path / "existing_model.joblib"
+    save_model(pipeline, model_file)
+
+    # Point data_path to non-existent file; it should NOT be touched
+    missing_data_file = tmp_path / "does_not_exist.csv"
+    loaded = ensure_model_pipeline(model_path=model_file, data_path=missing_data_file)
+    assert isinstance(loaded, Pipeline)
+    assert "classifier" in loaded.named_steps
+
+
+def test_ensure_model_pipeline_provisions_when_model_missing(tmp_path: Path):
+    """Verify champion model is auto-trained and saved when model artifact is missing."""
+    data_file = create_mock_dataset_csv(tmp_path / "data" / "ai4i2020.csv", num_rows=25)
+    model_file = tmp_path / "models" / "model.joblib"
+    assert not model_file.exists()
+
+    pipeline = ensure_model_pipeline(
+        model_path=model_file, data_path=data_file, auto_download=False
+    )
+    assert model_file.exists()
+    assert isinstance(pipeline, Pipeline)
+    assert type(pipeline.named_steps["classifier"]).__name__ == "XGBClassifier"
+
+    # Verify predictions work on sample record
+    test_record = pd.DataFrame(
+        [
+            {
+                "Type": "M",
+                "Air temperature [K]": 298.1,
+                "Process temperature [K]": 308.6,
+                "Rotational speed [rpm]": 1550,
+                "Torque [Nm]": 42.8,
+                "Tool wear [min]": 10,
+            }
+        ]
+    )
+    prob = pipeline.predict_proba(test_record)[0, 1]
+    assert 0.0 <= prob <= 1.0
+
+
+def test_ensure_model_pipeline_missing_data_no_download_raises_error(tmp_path: Path):
+    """Verify FileNotFoundError is raised if model and data are missing with auto_download=False."""
+    missing_model = tmp_path / "models" / "missing.joblib"
+    missing_data = tmp_path / "data" / "missing.csv"
+
+    with pytest.raises(FileNotFoundError, match="Model missing"):
+        ensure_model_pipeline(
+            model_path=missing_model, data_path=missing_data, auto_download=False
+        )
+
+
+def test_train_champion_model_only_trains_xgboost(tmp_path: Path):
+    """Verify train_champion_model trains exclusively the XGBoost champion pipeline."""
+    data_file = create_mock_dataset_csv(tmp_path / "raw.csv", num_rows=25)
+    save_file = tmp_path / "champion.joblib"
+
+    pipeline = train_champion_model(data_path=data_file, model_save_path=save_file)
+    assert save_file.exists()
+    assert isinstance(pipeline, Pipeline)
+    assert type(pipeline.named_steps["classifier"]).__name__ == "XGBClassifier"
